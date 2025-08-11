@@ -707,10 +707,12 @@ static void nl80211_connect_event(wifi_interface_info_t *interface, struct nlatt
         eapol_sm_notify_portEnabled(interface->u.sta.wpa_sm->eapol, TRUE);
     }
 
-    if (interface->u.sta.pending_rx_eapol) {
+    if (1) {//interface->u.sta.pending_rx_eapol) {
         void *hdr;
         int buff_len;
+        wifi_hal_dbg_print("%s:%d:Pramod\n", __func__, __LINE__);
 #ifdef EAPOL_OVER_NL
+        wifi_hal_dbg_print("%s:%d:Pramod\n", __func__, __LINE__);
         hdr = interface->u.sta.rx_eapol_buff;
         buff_len = interface->u.sta.buff_len;
 #else
@@ -737,7 +739,7 @@ static void nl80211_connect_event(wifi_interface_info_t *interface, struct nlatt
         wpa_sm_set_state(interface->u.sta.wpa_sm, WPA_ASSOCIATED);
         interface->u.sta.state = WPA_ASSOCIATED;
     }
-#if defined(CONFIG_WIFI_EMULATOR) || defined(BANANA_PI_PORT)
+#if !defined(CONFIG_WIFI_EMULATOR) || defined(BANANA_PI_PORT)
     wpa_supplicant_cancel_auth_timeout(&interface->wpa_s);
 #endif
 }
