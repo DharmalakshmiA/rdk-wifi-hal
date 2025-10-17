@@ -10357,7 +10357,7 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         [NL80211_BSS_PARENT_TSF] = { .type = NLA_U64 },
         [NL80211_BSS_PARENT_BSSID] = { .type = NLA_UNSPEC },
         [NL80211_BSS_LAST_SEEN_BOOTTIME] = { .type = NLA_U64 },
-#ifndef NO_NL80211_BSS_NOISE
+#ifdef NO_NL80211_BSS_NOISE
         [NL80211_BSS_NOISE] = { .type = NLA_U8 },
 #endif
     };
@@ -10477,7 +10477,7 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         scan_info_ap->rssi = rssi;
     }
 
-#ifndef NO_NL80211_BSS_NOISE
+#ifdef NO_NL80211_BSS_NOISE
     wifi_hal_stats_dbg_print("noise attribute: %p\n", bss[NL80211_BSS_NOISE]);
     // - noise
     if (bss[NL80211_BSS_NOISE]) {
