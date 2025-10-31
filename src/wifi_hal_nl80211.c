@@ -10340,9 +10340,9 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         [NL80211_BSS_PARENT_BSSID] = { .type = NLA_UNSPEC },
         [NL80211_BSS_LAST_SEEN_BOOTTIME] = { .type = NLA_U64 },
 #ifdef NL80211_IGNITE
-	[NL80211_BSS_NOISE] = { .type = NLA_U32 },
-	[NL80211_BSS_SNR] = { .type = NLA_U32 },
-	[NL80211_BSS_CU] = { .type = NLA_U8 },
+        [NL80211_BSS_NOISE] = { .type = NLA_U32 },
+        [NL80211_BSS_SNR] = { .type = NLA_U32 },
+        [NL80211_BSS_CU] = { .type = NLA_U8 },
 #endif
 #ifndef NO_NL80211_BSS_NOISE
         [NL80211_BSS_NOISE] = { .type = NLA_U8 },
@@ -10439,13 +10439,13 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 #ifdef NL80211_IGNITE
     // - Noise
     if (bss[NL80211_BSS_NOISE]) {
-        uint noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
+        int noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
         scan_info_ap->noise = noise;
 	wifi_hal_dbg_print("%s:%d Noise : [%d %d]\n", __func__, __LINE__, noise, scan_info_ap->noise);
     }
 
     if (bss[NL80211_BSS_SNR]) {
-        uint snr = nla_get_u32(bss[NL80211_BSS_SNR]);
+        int snr = nla_get_u32(bss[NL80211_BSS_SNR]);
         scan_info_ap->snr = snr;
 	wifi_hal_dbg_print("%s:%d SNR : [%d %d]\n", __func__, __LINE__, snr, scan_info_ap->snr);
     }
