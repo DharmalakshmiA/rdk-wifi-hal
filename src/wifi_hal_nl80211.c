@@ -10339,6 +10339,11 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         [NL80211_BSS_PARENT_TSF] = { .type = NLA_U64 },
         [NL80211_BSS_PARENT_BSSID] = { .type = NLA_UNSPEC },
         [NL80211_BSS_LAST_SEEN_BOOTTIME] = { .type = NLA_U64 },
+#ifdef NL80211_IGNITE
+	[NL80211_BSS_NOISE] = { .type = NLA_U32 },
+	[NL80211_BSS_SNR] = { .type = NLA_U32 },
+	[NL80211_BSS_CU] = { .type = NLA_U8 },
+#endif
 #ifndef NO_NL80211_BSS_NOISE
         [NL80211_BSS_NOISE] = { .type = NLA_U8 },
 #endif
@@ -10430,6 +10435,28 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         uint beacon_int = nla_get_u16(bss[NL80211_BSS_BEACON_INTERVAL]);
         scan_info_ap->beacon_int = beacon_int;
     }
+
+#ifdef NL80211_IGNITE
+    // - Noise
+    if (bss[NL80211_BSS_NOISE]) {
+        uint noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
+        scan_info_ap->noise = noise;
+	wifi_hal_dbg_print("%s:%d Noise : [%d %d]\n", __func__, __LINE__, noise, scan_info_ap->noise);
+    }
+
+    if (bss[NL80211_BSS_SNR]) {
+        uint snr = nla_get_u32(bss[NL80211_BSS_SNR]);
+        scan_info_ap->snr = snr;
+	wifi_hal_dbg_print("%s:%d SNR : [%d %d]\n", __func__, __LINE__, snr, scan_info_ap->snr);
+    }
+    
+    if (bss[NL80211_BSS_CU]) {
+        uint ch_util = nla_get_u8(bss[NL80211_BSS_CU]);
+        scan_info_ap->chan_utilization = ch_util;
+	wifi_hal_dbg_print("%s:%d CHannel-util : [%u %u]\n", __func__, __LINE__, ch_util, scan_info_ap->chan_utilization);
+    }
+    wifi_hal_dbg_print("%s:%d: noise : %d snr : %d chan-util : %u\n", __func__, __LINE__, scan_info_ap->noise, scan_info_ap->snr, scan_info_ap->chan_utilization);
+#endif
 
     // - capabillities
     if (bss[NL80211_BSS_CAPABILITY]) {
