@@ -10341,11 +10341,9 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         [NL80211_BSS_PARENT_TSF] = { .type = NLA_U64 },
         [NL80211_BSS_PARENT_BSSID] = { .type = NLA_UNSPEC },
         [NL80211_BSS_LAST_SEEN_BOOTTIME] = { .type = NLA_U64 },
-#ifdef NL80211_IGNITE
         [NL80211_BSS_NOISE] = { .type = NLA_U32 },
         [NL80211_BSS_SNR] = { .type = NLA_U32 },
         [NL80211_BSS_CU] = { .type = NLA_U8 },
-#endif
 #ifndef NO_NL80211_BSS_NOISE
         [NL80211_BSS_NOISE] = { .type = NLA_U8 },
 #endif
@@ -10438,7 +10436,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         scan_info_ap->beacon_int = beacon_int;
     }
 
-#ifdef NL80211_IGNITE
     // - Noise
     if (bss[NL80211_BSS_NOISE]) {
         int noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
@@ -10458,7 +10455,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 	wifi_hal_dbg_print("%s:%d CHannel-util : [%u %u]\n", __func__, __LINE__, ch_util, scan_info_ap->chan_utilization);
     }
     wifi_hal_dbg_print("%s:%d: noise : %d snr : %d chan-util : %u\n", __func__, __LINE__, scan_info_ap->noise, scan_info_ap->snr, scan_info_ap->chan_utilization);
-#endif
 
     // - capabillities
     if (bss[NL80211_BSS_CAPABILITY]) {
@@ -10571,7 +10567,9 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         wifi_hal_stats_dbg_print("%s:%d: [SCAN] found bss:%s rssi:%d ssid:%s on freq:%d \n",
             __func__, __LINE__, to_mac_str(bssid, bssid_str), scan_info_ap->rssi,
             scan_info_ap->ssid, scan_info_ap->freq);
-        wifi_bss_info_t *scan_info = NULL;
+        wifi_hal_stats_error_print("%s:%d: Supported Standards: 0x%x\n", __func__, __LINE__, scan_info_ap->supp_standards);
+        wifi_hal_stats_error_print("%s:%d:Operating Standards: 0x%x\n", __func__, __LINE__, scan_info_ap->oper_standards);
+	wifi_bss_info_t *scan_info = NULL;
         pthread_mutex_lock(&interface->scan_info_mutex);
         scan_info = hash_map_get(interface->scan_info_map, key);
         if (scan_info == NULL) {
