@@ -10358,33 +10358,40 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     const char *key = NULL;
     wifi_bss_info_t *scan_info_ap = NULL;
 
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     interface = (wifi_interface_info_t *)arg;
     vap = &interface->vap_info;
 
     gnlh = nlmsg_data(nlmsg_hdr(msg));
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (tb[NL80211_ATTR_BSS] == NULL) {
         wifi_hal_stats_error_print("%s:%d: [SCAN] bss attribute not present\n", __func__, __LINE__);
         return NL_SKIP;
     }
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (nla_parse_nested(bss, NL80211_BSS_MAX, tb[NL80211_ATTR_BSS], bss_policy) != 0) {
         wifi_hal_stats_error_print("%s:%d: [SCAN] nested bss attribute not present\n", __func__, __LINE__);
         return NL_SKIP;
     }
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (bss[NL80211_BSS_BSSID] != NULL) {
         memcpy(bssid, nla_data(bss[NL80211_BSS_BSSID]), sizeof(mac_address_t));
         key = to_mac_str(bssid, bssid_str);
     } else {
-        // wifi_hal_dbg_print("%s:%d: [SCAN] BSSID not found\n", __func__, __LINE__);
+        wifi_hal_dbg_print("%s:%d: [SCAN] BSSID not found\n", __func__, __LINE__);
         return NL_SKIP;
     }
 
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     if (bss[NL80211_BSS_INFORMATION_ELEMENTS]) {
         ie = nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
         len = nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
+        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         //wifi_hal_stats_dbg_print("[SCAN] BSSID: %s, IE LEN %d\n", bssid_str, len);
         if (len > MAX_IE_ELEMENT_LEN) {
             wifi_hal_stats_error_print("[Wrong NL SCAN output] BSSID: %s, IE LEN %d\n", bssid_str, len);
@@ -10393,11 +10400,13 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     } else {
         ie = NULL;
         len = 0;
+        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         // wifi_hal_dbg_print("%s:%d: [SCAN] BSS info for BSSID:%s not found\n", __func__, __LINE__, key);
         return NL_SKIP;
     }
 
     if (bss[NL80211_BSS_BEACON_IES]) {
+        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         beacon_ies = nla_data(bss[NL80211_BSS_BEACON_IES]);
         beacon_ie_len = nla_len(bss[NL80211_BSS_BEACON_IES]);
     }
@@ -10418,6 +10427,7 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 
     // - freq / channel / band
     if (bss[NL80211_BSS_FREQUENCY]) {
+        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         uint freq = nla_get_u32(bss[NL80211_BSS_FREQUENCY]);
         scan_info_ap->freq = freq;
 
@@ -10430,11 +10440,13 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         }
     }
 
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     // - beacon interval
     if (bss[NL80211_BSS_BEACON_INTERVAL]) {
         uint beacon_int = nla_get_u16(bss[NL80211_BSS_BEACON_INTERVAL]);
         scan_info_ap->beacon_int = beacon_int;
     }
+    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     // - Noise
     if (bss[NL80211_BSS_NOISE]) {
