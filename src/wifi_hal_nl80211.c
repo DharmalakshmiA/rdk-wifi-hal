@@ -10129,6 +10129,7 @@ static void parse_eht_oper(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)type;
     (void)ie_buffer;
 
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     if ((data[1] & EHT_OPER_INFO_PRESENT) && len >= 7) {
         switch (data[6] & 0x07) {
         case EHT_OPER_CHANNEL_WIDTH_40MHZ:
@@ -10161,6 +10162,7 @@ static void parse_bss_load(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)len;
     (void)ie_buffer;
 
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     bss->chan_utilization = ((unsigned)data[2] * 100) / 255;
 }
 
@@ -10171,6 +10173,7 @@ static void parse_extension_tag(const uint8_t type, uint8_t len, const uint8_t *
         wifi_hal_stats_error_print("%s:%d: [SCAN] length of extension elem is 0\n", __func__, __LINE__);
         return;
     }
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
 
     //wifi_hal_stats_dbg_print("%s:%d: [SCAN] Extension TagNumber=%d\n", __func__, __LINE__, data[0]);
 
@@ -10200,9 +10203,11 @@ static void parse_ssid(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)type;
     (void)ie_buffer;
 
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     memset(bss->ssid, 0, sizeof(bss->ssid));
     if (len > sizeof(bss->ssid)-1) len = sizeof(bss->ssid)-1; // - reserve 1 byte for zero char
     memcpy(bss->ssid, data, len);
+    wifi_hal_error_print("%s:%d: SSID : %s\n", __func__, __LINE__, bss->ssid);
 }
 
 struct ie_parse {
@@ -10222,11 +10227,13 @@ static void parse_ie(const struct ie_parse *p, const uint8_t type, uint8_t len,
         return;
     }
 
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     if (len < p->minlen || len > p->maxlen) {
         wifi_hal_error_print("%s:%d: [SCAN] Elem %u: length %u doesn't match 'min' and 'max' len criterion: [%u:%u]\n", __func__, __LINE__,
             type, len, p->minlen, p->maxlen);
         return;
     }
+    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
 
     p->parser(type, len, data, ie_buffer, bss);
 }
@@ -10305,12 +10312,14 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss)
 
     while (ielen >= 2 && ielen >= ie[1]) {
         uint16_t elem_id = (uint16_t)ie[0];
+        wifi_hal_error_print("%s:%d elem-id : 0x%x\n", __func__, __LINE__, elem_id);
 
         if (elem_id < ARRAY_SIZE(ie_parsers) &&
             ie_parsers[elem_id].name &&
             ie_parsers[elem_id].flags ) {
             parse_ie(&ie_parsers[elem_id], elem_id, ie[1], ie + 2, &ie_buffer, bss);
         } else if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
+            wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
             parse_vendor(ie[1], ie + 2);
         }
         ielen -= ie[1] + 2;
@@ -10319,6 +10328,49 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss)
 }
 
 // ==========================================
+
+void print_ies(const uint8_t *ie, size_t ielen) 
+{
+    wifi_hal_error_print("=== Information Elements (%zu bytes) ===\n", ielen);
+
+    while (ielen >= 2 && ielen >= ie[1] + 2) {
+        uint8_t elem_id = ie[0];
+        uint8_t elem_len = ie[1];
+
+        wifi_hal_error_print("IE [%3d] Len=%3d: ", elem_id, elem_len);
+
+        switch(elem_id) {
+            case 0:  // SSID
+                if (elem_len > 0) {
+                    wifi_hal_error_print("[%s %d] SSID='%.*s'", __func__, __LINE__, elem_len, ie + 2);
+                } else {
+                    wifi_hal_error_print("[%s %d] SSID=<hidden>", __func__, __LINE__);
+                }
+                break;
+
+            case 3:  // DS Parameter Set (Channel)
+                if (elem_len >= 1) {
+                    wifi_hal_error_print("[%s %d] Channel=%d", __func__, __LINE__, ie[2]);
+                }
+                break;
+
+            default:
+                wifi_hal_error_print("[%s %d] Unknown (hex: ", __func__, __LINE__);
+                for (int i = 0; i < elem_len && i < 8; i++) {
+                    wifi_hal_error_print("%02x ", ie[2 + i]);
+                }
+                if (elem_len > 8) wifi_hal_error_print("[%s %d] elem-len : %u\n", __func__, __LINE__, elem_len);
+                wifi_hal_error_print(")");
+                break;
+        }
+
+        wifi_hal_error_print("[%s %d] \n", __func__, __LINE__);
+
+        ielen -= elem_len + 2;
+        ie += elem_len + 2;
+    }
+    wifi_hal_error_print("=================================\n");
+}
 
 static int scan_info_handler(struct nl_msg *msg, void *arg)
 {
@@ -10363,21 +10415,17 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     vap = &interface->vap_info;
 
     gnlh = nlmsg_data(nlmsg_hdr(msg));
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (tb[NL80211_ATTR_BSS] == NULL) {
         wifi_hal_stats_error_print("%s:%d: [SCAN] bss attribute not present\n", __func__, __LINE__);
         return NL_SKIP;
     }
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (nla_parse_nested(bss, NL80211_BSS_MAX, tb[NL80211_ATTR_BSS], bss_policy) != 0) {
         wifi_hal_stats_error_print("%s:%d: [SCAN] nested bss attribute not present\n", __func__, __LINE__);
         return NL_SKIP;
     }
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
 
     if (bss[NL80211_BSS_BSSID] != NULL) {
         memcpy(bssid, nla_data(bss[NL80211_BSS_BSSID]), sizeof(mac_address_t));
@@ -10387,12 +10435,12 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         return NL_SKIP;
     }
 
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     if (bss[NL80211_BSS_INFORMATION_ELEMENTS]) {
         ie = nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
         len = nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
         wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
-        //wifi_hal_stats_dbg_print("[SCAN] BSSID: %s, IE LEN %d\n", bssid_str, len);
+        print_ies(ie, len);
+	//wifi_hal_stats_dbg_print("[SCAN] BSSID: %s, IE LEN %d\n", bssid_str, len);
         if (len > MAX_IE_ELEMENT_LEN) {
             wifi_hal_stats_error_print("[Wrong NL SCAN output] BSSID: %s, IE LEN %d\n", bssid_str, len);
             return NL_SKIP;
@@ -10406,9 +10454,10 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     }
 
     if (bss[NL80211_BSS_BEACON_IES]) {
-        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
+	    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         beacon_ies = nla_data(bss[NL80211_BSS_BEACON_IES]);
         beacon_ie_len = nla_len(bss[NL80211_BSS_BEACON_IES]);
+        print_ies(beacon_ies, beacon_ie_len);
     }
 
     // - create separate AP info entry for wifi_getNeighboringWiFiStatus().
