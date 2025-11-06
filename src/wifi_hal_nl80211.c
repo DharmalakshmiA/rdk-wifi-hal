@@ -10308,7 +10308,6 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss)
 
     while (ielen >= 2 && ielen >= ie[1]) {
         uint16_t elem_id = (uint16_t)ie[0];
-        wifi_hal_error_print("%s:%d elem-id : 0x%x\n", __func__, __LINE__, elem_id);
 
         if (elem_id < ARRAY_SIZE(ie_parsers) &&
             ie_parsers[elem_id].name &&
@@ -10493,9 +10492,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         scan_info_ap->chan_utilization = ch_util;
     }
 
-    wifi_hal_dbg_print("%s:%d: [SCAN] Bssid:%s rssi:%d on freq:%d noise : %d snr : %d chan-util : %d for ssid:%s\n", __func__, __LINE__,
-                        to_mac_str(bssid, bssid_str), scan_info_ap->rssi, scan_info_ap->freq, scan_info_ap->noise, scan_info_ap->snr, 
-			scan_info_ap->chan_utilization,  scan_info_ap->ssid);
 
     // - ies
     uint32_t radio_index = 0;
@@ -10514,6 +10510,10 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         scan_info_ap->ie_len = len;
         memcpy(scan_info_ap->ie, ie, scan_info_ap->ie_len);
     }
+    
+    wifi_hal_dbg_print("%s:%d: [SCAN] Bssid:%s rssi:%d on freq:%d noise : %d snr : %d chan-util : %d for ssid:%s\n", __func__, __LINE__,
+                        to_mac_str(bssid, bssid_str), scan_info_ap->rssi, scan_info_ap->freq, scan_info_ap->noise, scan_info_ap->snr, 
+			scan_info_ap->chan_utilization,  scan_info_ap->ssid);
 
     if (vap->vap_mode == wifi_vap_mode_sta) {
         // Wildcard STA VAP SSIDs cannot be used to set the backhaul BSSID
