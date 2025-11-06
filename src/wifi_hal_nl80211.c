@@ -10329,51 +10329,6 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss)
     }
 }
 
-// ==========================================
-
-void print_ies(const uint8_t *ie, size_t ielen) 
-{
-    wifi_hal_error_print("=== Information Elements (%zu bytes) ===\n", ielen);
-
-    while (ielen >= 2 && ielen >= ie[1] + 2) {
-        uint8_t elem_id = ie[0];
-        uint8_t elem_len = ie[1];
-
-        wifi_hal_error_print("IE [%3d] Len=%3d: ", elem_id, elem_len);
-
-        switch(elem_id) {
-            case 0:  // SSID
-                if (elem_len > 0) {
-                    wifi_hal_error_print("[%s %d] SSID='%.*s'", __func__, __LINE__, elem_len, ie + 2);
-                } else {
-                    wifi_hal_error_print("[%s %d] SSID=<hidden>", __func__, __LINE__);
-                }
-                break;
-
-            case 3:  // DS Parameter Set (Channel)
-                if (elem_len >= 1) {
-                    wifi_hal_error_print("[%s %d] Channel=%d", __func__, __LINE__, ie[2]);
-                }
-                break;
-
-            default:
-                wifi_hal_error_print("[%s %d] Unknown (hex: ", __func__, __LINE__);
-                for (int i = 0; i < elem_len && i < 8; i++) {
-                    wifi_hal_error_print("%02x ", ie[2 + i]);
-                }
-                if (elem_len > 8) wifi_hal_error_print("[%s %d] elem-len : %u\n", __func__, __LINE__, elem_len);
-                wifi_hal_error_print(")");
-                break;
-        }
-
-        wifi_hal_error_print("[%s %d] \n", __func__, __LINE__);
-
-        ielen -= elem_len + 2;
-        ie += elem_len + 2;
-    }
-    wifi_hal_error_print("=================================\n");
-}
-
 static int scan_info_handler(struct nl_msg *msg, void *arg)
 {
     wifi_interface_info_t *interface;
@@ -10395,12 +10350,13 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         [NL80211_BSS_PARENT_TSF] = { .type = NLA_U64 },
         [NL80211_BSS_PARENT_BSSID] = { .type = NLA_UNSPEC },
         [NL80211_BSS_LAST_SEEN_BOOTTIME] = { .type = NLA_U64 },
-        [NL80211_BSS_NOISE] = { .type = NLA_U32 },
-        [NL80211_BSS_SNR] = { .type = NLA_U32 },
-        [NL80211_BSS_CU] = { .type = NLA_U8 },
 #ifndef NO_NL80211_BSS_NOISE
         [NL80211_BSS_NOISE] = { .type = NLA_U8 },
+#else
+        [NL80211_BSS_NOISE] = { .type = NLA_U32 },
 #endif
+        [NL80211_BSS_SNR] = { .type = NLA_U32 },
+        [NL80211_BSS_CU] = { .type = NLA_U8 },
     };
 
     mac_address_t   bssid;
@@ -10412,7 +10368,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     const char *key = NULL;
     wifi_bss_info_t *scan_info_ap = NULL;
 
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     interface = (wifi_interface_info_t *)arg;
     vap = &interface->vap_info;
 
@@ -10440,8 +10395,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     if (bss[NL80211_BSS_INFORMATION_ELEMENTS]) {
         ie = nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
         len = nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
-        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
-        print_ies(ie, len);
 	//wifi_hal_stats_dbg_print("[SCAN] BSSID: %s, IE LEN %d\n", bssid_str, len);
         if (len > MAX_IE_ELEMENT_LEN) {
             wifi_hal_stats_error_print("[Wrong NL SCAN output] BSSID: %s, IE LEN %d\n", bssid_str, len);
@@ -10450,16 +10403,13 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     } else {
         ie = NULL;
         len = 0;
-        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         // wifi_hal_dbg_print("%s:%d: [SCAN] BSS info for BSSID:%s not found\n", __func__, __LINE__, key);
         return NL_SKIP;
     }
 
     if (bss[NL80211_BSS_BEACON_IES]) {
-	    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         beacon_ies = nla_data(bss[NL80211_BSS_BEACON_IES]);
         beacon_ie_len = nla_len(bss[NL80211_BSS_BEACON_IES]);
-        print_ies(beacon_ies, beacon_ie_len);
     }
 
     // - create separate AP info entry for wifi_getNeighboringWiFiStatus().
@@ -10478,7 +10428,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 
     // - freq / channel / band
     if (bss[NL80211_BSS_FREQUENCY]) {
-        wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
         uint freq = nla_get_u32(bss[NL80211_BSS_FREQUENCY]);
         scan_info_ap->freq = freq;
 
@@ -10491,33 +10440,11 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
         }
     }
 
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
     // - beacon interval
     if (bss[NL80211_BSS_BEACON_INTERVAL]) {
         uint beacon_int = nla_get_u16(bss[NL80211_BSS_BEACON_INTERVAL]);
         scan_info_ap->beacon_int = beacon_int;
     }
-    wifi_hal_dbg_print("%s:%d TESTING\n", __func__, __LINE__);
-
-    // - Noise
-    if (bss[NL80211_BSS_NOISE]) {
-        int noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
-        scan_info_ap->noise = noise;
-	wifi_hal_dbg_print("%s:%d Noise : [%d %d]\n", __func__, __LINE__, noise, scan_info_ap->noise);
-    }
-
-    if (bss[NL80211_BSS_SNR]) {
-        int snr = nla_get_u32(bss[NL80211_BSS_SNR]);
-        scan_info_ap->snr = snr;
-	wifi_hal_dbg_print("%s:%d SNR : [%d %d]\n", __func__, __LINE__, snr, scan_info_ap->snr);
-    }
-    
-    if (bss[NL80211_BSS_CU]) {
-        uint ch_util = nla_get_u8(bss[NL80211_BSS_CU]);
-        scan_info_ap->chan_utilization = ch_util;
-	wifi_hal_dbg_print("%s:%d CHannel-util : [%u %u]\n", __func__, __LINE__, ch_util, scan_info_ap->chan_utilization);
-    }
-    wifi_hal_dbg_print("%s:%d: noise : %d snr : %d chan-util : %u\n", __func__, __LINE__, scan_info_ap->noise, scan_info_ap->snr, scan_info_ap->chan_utilization);
 
     // - capabillities
     if (bss[NL80211_BSS_CAPABILITY]) {
@@ -10557,7 +10484,25 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
     }
 #else
     // wifi_hal_dbg_print("WARNING: NL80211_BSS_NOISE is not defined! Need to update header nl80211.h\n");
+    // - Noise
+    if (bss[NL80211_BSS_NOISE]) {
+        int noise = nla_get_u32(bss[NL80211_BSS_NOISE]);
+        scan_info_ap->noise = noise;
+    }
 #endif
+    if (bss[NL80211_BSS_SNR]) {
+        int snr = nla_get_u32(bss[NL80211_BSS_SNR]);
+        scan_info_ap->snr = snr;
+    }
+    
+    if (bss[NL80211_BSS_CU]) {
+        uint ch_util = nla_get_u8(bss[NL80211_BSS_CU]);
+        scan_info_ap->chan_utilization = ch_util;
+    }
+
+    wifi_hal_dbg_print("%s:%d: [SCAN] Bssid:%s rssi:%d on freq:%d noise : %d snr : %d chan-util : %d for ssid:%s\n", __func__, __LINE__,
+                        to_mac_str(bssid, bssid_str), scan_info_ap->rssi, scan_info_ap->freq, scan_info_ap->noise, scan_info_ap->snr, 
+			scan_info_ap->chan_utilization,  scan_info_ap->ssid);
 
     // - ies
     uint32_t radio_index = 0;
