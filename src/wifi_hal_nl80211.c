@@ -10131,7 +10131,6 @@ static void parse_eht_oper(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)type;
     (void)ie_buffer;
 
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     if ((data[1] & EHT_OPER_INFO_PRESENT) && len >= 7) {
         switch (data[6] & 0x07) {
         case EHT_OPER_CHANNEL_WIDTH_40MHZ:
@@ -10164,7 +10163,6 @@ static void parse_bss_load(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)len;
     (void)ie_buffer;
 
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     bss->chan_utilization = ((unsigned)data[2] * 100) / 255;
 }
 
@@ -10175,7 +10173,6 @@ static void parse_extension_tag(const uint8_t type, uint8_t len, const uint8_t *
         wifi_hal_stats_error_print("%s:%d: [SCAN] length of extension elem is 0\n", __func__, __LINE__);
         return;
     }
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
 
     //wifi_hal_stats_dbg_print("%s:%d: [SCAN] Extension TagNumber=%d\n", __func__, __LINE__, data[0]);
 
@@ -10205,7 +10202,6 @@ static void parse_ssid(const uint8_t type, uint8_t len, const uint8_t *data,
     (void)type;
     (void)ie_buffer;
 
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     memset(bss->ssid, 0, sizeof(bss->ssid));
     if (len > sizeof(bss->ssid)-1) len = sizeof(bss->ssid)-1; // - reserve 1 byte for zero char
     memcpy(bss->ssid, data, len);
@@ -10229,13 +10225,11 @@ static void parse_ie(const struct ie_parse *p, const uint8_t type, uint8_t len,
         return;
     }
 
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
     if (len < p->minlen || len > p->maxlen) {
         wifi_hal_error_print("%s:%d: [SCAN] Elem %u: length %u doesn't match 'min' and 'max' len criterion: [%u:%u]\n", __func__, __LINE__,
             type, len, p->minlen, p->maxlen);
         return;
     }
-    wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
 
     p->parser(type, len, data, ie_buffer, bss);
 }
@@ -10321,7 +10315,6 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss)
             ie_parsers[elem_id].flags ) {
             parse_ie(&ie_parsers[elem_id], elem_id, ie[1], ie + 2, &ie_buffer, bss);
         } else if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
-            wifi_hal_error_print("%s:%d [TESTING]\n", __func__, __LINE__);
             parse_vendor(ie[1], ie + 2);
         }
         ielen -= ie[1] + 2;
