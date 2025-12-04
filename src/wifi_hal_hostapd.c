@@ -2731,13 +2731,16 @@ void update_wpa_sm_params(wifi_interface_info_t *interface)
     pbkdf2_sha1(sec->u.key.key, backhaul->ssid, strlen(backhaul->ssid), 
         4096, pmk, PMK_LEN);
 
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     wpa_sm_set_own_addr(sm, interface->mac);
     wpa_sm_set_pmk(sm, pmk, PMK_LEN, NULL, NULL);
     wpa_sm_set_param(sm, WPA_PARAM_RSN_ENABLED, 1);
     wpa_sm_set_param(sm, WPA_PARAM_PROTO, WPA_PROTO_RSN);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
 #if HOSTAPD_VERSION >= 211 //2.11
     wpa_sm_set_param(sm, WPA_PARAM_RSN_OVERRIDE_SUPPORT, false);
     wpa_sm_set_param(sm, WPA_PARAM_RSN_OVERRIDE, RSN_OVERRIDE_NOT_USED);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
 
 #if defined(CONFIG_WIFI_EMULATOR)
 #ifdef CONFIG_IEEE80211BE
@@ -2763,6 +2766,7 @@ void update_wpa_sm_params(wifi_interface_info_t *interface)
         (wpa_parse_wpa_ie_rsn(rsn_ie, ((ieee80211_tlv_t *)rsn_ie)->length + 2, &data) == 0)) {
         wpa_sm_set_param(sm, WPA_PARAM_PAIRWISE, WPA_CIPHER_CCMP);
         wpa_sm_set_param(sm, WPA_PARAM_GROUP, data.group_cipher);
+        wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
 
         if (data.key_mgmt & WPA_KEY_MGMT_NONE) {
             wpa_sm_set_param(sm, WPA_PARAM_KEY_MGMT, WPA_KEY_MGMT_NONE);

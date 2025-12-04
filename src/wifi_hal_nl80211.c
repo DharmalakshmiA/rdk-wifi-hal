@@ -9026,6 +9026,7 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
     const u8 *rsnxe;
     u8 rsnxe_capa = 0;
 
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     wifi_convert_freq_band_to_radio_index(backhaul->oper_freq_band,
         (int *)&radio_index);
     wifi_ie_info_t *bss_ie = &interface->bss_elem_ie[radio_index];
@@ -9187,10 +9188,12 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
 #ifdef CONFIG_WIFI_EMULATOR
     radio = get_radio_by_phy_index(interface->phy_index);
 #else
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     radio = get_radio_by_rdk_index(vap->radio_index);
 #endif
     interface->wpa_s.hw.modes = radio->hw_modes;
     interface->wpa_s.hw.num_modes = NUM_NL80211_BANDS;
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     memcpy(interface->wpa_s.own_addr, vap->u.sta_info.mac, ETH_ALEN);
     struct wpa_bss *curr_bss = (struct wpa_bss *)malloc(sizeof(struct wpa_bss) + bss_ie->buff_len);
     if (curr_bss == NULL) {
@@ -9204,6 +9207,7 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
         return -1;
     }
     memset(curr_bss, 0, sizeof(struct wpa_bss) + bss_ie->buff_len);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     strcpy(curr_bss->ssid, backhaul->ssid);
     curr_bss->ssid_len = strlen(backhaul->ssid);
     memcpy(curr_bss->bssid, backhaul->bssid, ETH_ALEN);
@@ -9211,6 +9215,7 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
     curr_bss->ie_len = bss_ie->buff_len;
     curr_bss->beacon_ie_len = beacon_ie->buff_len;
     if (bss_ie->buff != NULL) {
+        wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
         memcpy(curr_bss->ies, bss_ie->buff, bss_ie->buff_len);
         rsnxe = get_ie(bss_ie->buff, bss_ie->buff_len, WLAN_EID_RSNX);
         if (rsnxe && rsnxe[1] >= 1)
@@ -9244,10 +9249,12 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
 #endif
     memcpy(interface->wpa_s.conf->ssid, interface->wpa_s.current_ssid, sizeof(struct wpa_ssid));
     memcpy(interface->wpa_s.bssid, backhaul->bssid, ETH_ALEN);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     dl_list_add(&interface->wpa_s.bss, &interface->wpa_s.current_bss->list);
 
     bss = wpa_bss_get_bssid_latest(&interface->wpa_s, backhaul->bssid);
     if (bss) { 
+        wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
         memcpy(bss->ies, bss_ie->buff, bss_ie->buff_len);
     }
 
@@ -9259,11 +9266,15 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
     if (interface->u.sta.pending_rx_eapol) {
         interface->u.sta.pending_rx_eapol = false;
     }
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     // EAPOL states should be initialised before sending CMD_CONNECT
     update_wpa_sm_params(interface);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     update_eapol_sm_params(interface);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
     eapol_sm_notify_portEnabled(interface->u.sta.wpa_sm->eapol, FALSE);
     eapol_sm_notify_portValid(interface->u.sta.wpa_sm->eapol, FALSE);
+    wifi_util_dbg_print(WIFI_WEBCONFIG, "%s:%d [DHARMA]\n", __func__, __LINE__);
 
     if ((msg = nl80211_drv_cmd_msg(g_wifi_hal.nl80211_id, interface, 0, NL80211_CMD_CONNECT)) == NULL) {
         return -1;
