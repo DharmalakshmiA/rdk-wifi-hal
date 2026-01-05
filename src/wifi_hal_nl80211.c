@@ -105,8 +105,6 @@ static int scan_info_handler(struct nl_msg *msg, void *arg);
 static void nl80211_unregister_mgmt_frames(wifi_interface_info_t *interface);
 int wifi_drv_link_add(void *priv, u8 link_id, const u8 *addr, void *bss_ctx);
 
-static int socket_count = 0;
-
 struct family_data {
     const char *group;
     int id;
@@ -15585,12 +15583,6 @@ int wifi_drv_set_operstate(void *priv, int state)
         }
     }
 
-    if (vap->u.sta_info.ignite_enabled && count == 0) {
-        count++;
-    } else {
-        return 0;
-    }
-    
 #ifndef EAPOL_OVER_NL
 #ifndef CONFIG_WIFI_EMULATOR
     if (vap->vap_mode == wifi_vap_mode_ap) {
