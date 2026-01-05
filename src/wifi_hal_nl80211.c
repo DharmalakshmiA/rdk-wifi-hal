@@ -9445,6 +9445,7 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
     }
 
 #ifdef CONFIG_IEEE80211W
+    wifi_hal_info_print("%s:%d: Security mode : %d mfp : %d\n", __func__, __LINE__, security->mode, (enum mfp_options)security->mfp);
     if (security->mode == wifi_security_mode_wpa3_personal ||
         security->mode == wifi_security_mode_wpa3_enterprise ||
         security->mode == wifi_security_mode_wpa3_transition || 
@@ -9454,6 +9455,7 @@ int nl80211_connect_sta(wifi_interface_info_t *interface)
         wpa_conf.group_mgmt_cipher = WPA_CIPHER_AES_128_CMAC;
     }
 #endif
+    wifi_hal_info_print("%s:%d: mfp : %d group-mgmt-cipher : 0x%x\n", __func__, __LINE__, wpa_conf.ieee80211w, wpa_conf.group_mgmt_cipher);
 
     if (security->mode != wifi_security_mode_none) {
         if ((ret = wpa_write_rsn_ie(&wpa_conf, pos, rsn_ie + sizeof(rsn_ie) - pos, NULL)) < 0) {
