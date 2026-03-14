@@ -10820,6 +10820,7 @@ static int validate_timestamp(uint64_t ts)
 
     wifi_hal_dbg_print("[%s %d] Timestamp VALID (diff=%lld)\n",
             __func__, __LINE__, diff);
+	return 0;
 }
 
 static void decrypt_payload(uint8_t *data)
