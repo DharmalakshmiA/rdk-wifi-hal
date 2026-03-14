@@ -11136,7 +11136,11 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 
     if (ie) {
         // Parse standard IEs including SSID
-        parse_ies(ie, len, scan_info_ap);
+		wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
+	    if ((strcmp(scan_info_ap->ssid, "Xfinity Mobile") == 0) && (strcmp(get_vap_ssid(vap), "Xfinity Mobile") == 0)) {
+             parse_ies(ie, len, scan_info_ap);
+        }
+        
     } else {
         // Parse IEs from beacon IEs (including SSID)
         wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
