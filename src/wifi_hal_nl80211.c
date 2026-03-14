@@ -10826,6 +10826,8 @@ static void decrypt_payload(uint8_t *data)
 {
     void *ctx;
 
+    wpa_hexdump(MSG_DEBUG, "Ciphertext before decrypt", data, 16);
+
     ctx = aes_decrypt_init(comcast_aes_key, sizeof(comcast_aes_key));
     if (!ctx)
         return;
@@ -10833,6 +10835,8 @@ static void decrypt_payload(uint8_t *data)
     aes_decrypt(ctx, data, data);
 
     aes_decrypt_deinit(ctx);
+
+     wpa_hexdump(MSG_DEBUG, "Plaintext after decrypt", data, 16);
 }
 
 static int verify_comcast_hmac(struct comcast_payload *p)
@@ -10845,10 +10849,15 @@ static int verify_comcast_hmac(struct comcast_payload *p)
                 16,               // encrypted payload
                 calc);
    
-    wpa_hexdump(MSG_DEBUG, "Calculated HMAC", calc, 32); 
-    if (memcmp(calc, p->hmac, 16) != 0)
-        return -1;
-
+    wpa_hexdump(MSG_DEBUG, "Calculated HMAC", calc, 16); 
+    wpa_hexdump(MSG_DEBUG, "Received HMAC", p->hmac, 16);
+    if (memcmp(calc, p->hmac, 16) != 0) {
+        wifi_hal_dbg_print("[%s %d] HMAC MISMATCH\n",
+                __func__, __LINE__);
+	return -1;
+    }
+    wifi_hal_dbg_print("[%s %d] HMAC VALID\n",
+            __func__, __LINE__);
     return 0;
 }
 
@@ -10860,6 +10869,16 @@ int decrypt_comcast_ie(uint8_t *data, size_t len)
         return -1;
 
     memcpy(&payload, data, sizeof(payload));
+
+    wifi_hal_dbg_print("[%s %d] Comcast IE raw payload received len=%zu\n",
+        __func__, __LINE__, len);
+
+    wpa_hexdump(MSG_DEBUG, "RX Encrypted payload", data, 16);
+
+    wpa_hexdump(MSG_DEBUG,
+        "RX HMAC",
+        data + 16,
+        16);
 
     /* Step 1: verify HMAC */
     if (verify_comcast_hmac(&payload) < 0) {
