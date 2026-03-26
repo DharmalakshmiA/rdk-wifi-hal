@@ -11430,7 +11430,11 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
             ie_parsers[elem_id].flags ) {
             parse_ie(&ie_parsers[elem_id], elem_id, ie[1], ie + 2, &ie_buffer, bss);
         } else if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
-            parse_vendor(ie[1], ie + 2);
+	    wifi_hal_dbg_print("%s:%d Scanned BSSID: %s\n", __func__, __LINE__, bss->ssid);
+	    if (strcmp(bss->ssid, "Xfinity Mobile") == 0) {
+		wifi_hal_dbg_print("%s:%d Parsing vendor IE\n", __func__, __LINE__);
+		parse_vendor(ie[1], ie + 2);
+	    }
         }
         ielen -= ie[1] + 2;
         ie += ie[1] + 2;
@@ -11611,18 +11615,12 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 
     if (ie) {
         // Parse standard IEs including SSID
-		wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
-	    if ((strcmp(scan_info_ap->ssid, "Xfinity Mobile") == 0) && (strcmp(get_vap_ssid(vap), "Xfinity Mobile") == 0)) {
              parse_ies(ie, len, scan_info_ap, scan_radio);
-        }
-        
     } else {
         // Parse IEs from beacon IEs (including SSID)
-        wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
-	if ((strcmp(scan_info_ap->ssid, "Xfinity Mobile") == 0) && (strcmp(get_vap_ssid(vap), "Xfinity Mobile") == 0)) {
-            parse_ies(beacon_ies, beacon_ie_len, scan_info_ap, scan_radio);
-        }
+        parse_ies(beacon_ies, beacon_ie_len, scan_info_ap, scan_radio);
     }
+    wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
 
     if (ie != NULL && len > 0) {
         // Copy into IEs buffer
