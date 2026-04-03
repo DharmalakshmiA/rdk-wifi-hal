@@ -8233,7 +8233,7 @@ INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band nl_b
 {
     struct hostapd_hw_modes *hw_mode;
     wifi_radio_capabilities_t *capability = NULL;
-    
+
     if (radio == NULL) {
         wifi_hal_error_print("%s:%d: No Radio found\n", __func__, __LINE__);
         return RETURN_ERR;
@@ -8245,7 +8245,7 @@ INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band nl_b
         return RETURN_ERR;
     }
 
-    wifi_hal_info_print("%s:%d: Radio's rdk_index:%u nl_band:%d\n", 
+    wifi_hal_info_print("%s:%d: Radio's rdk_index:%u nl_band:%d\n",
         __func__, __LINE__, radio->rdk_radio_index, nl_band);
 
     if (nl_band < 0 || nl_band >= NUM_NL80211_BANDS) {
@@ -8260,31 +8260,49 @@ INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band nl_b
         return RETURN_ERR;
     }
 
-    wifi_hal_info_print("%s:%d: hw_mode->mode:%d, num_channels:%u\n", 
+    wifi_hal_info_print("%s:%d: hw_mode->mode:%d, num_channels:%u\n",
         __func__, __LINE__, hw_mode->mode, hw_mode->num_channels);
 
     /* Check if hw_mode is valid */
     if (hw_mode->mode == 0 && hw_mode->num_channels == 0) {
-        wifi_hal_dbg_print("%s:%d: hw_mode not fully populated for band %d\n", 
+        wifi_hal_dbg_print("%s:%d: hw_mode not fully populated for band %d\n",
             __func__, __LINE__, nl_band);
     }
+
+    // HT/VHT
+    wifi_hal_info_print("%s:%d HT Capabilities: 0x%x\n", __func__, __LINE__, hw_mode->ht_capab);
+    wpa_hexdump(MSG_MSGDUMP, "HT MCS", hw_mode->mcs_set, sizeof(hw_mode->mcs_set));
+
+    wifi_hal_info_print("%s:%d VHT Capabilities: 0x%08x\n", __func__, __LINE__, hw_mode->vht_capab);
+    wpa_hexdump(MSG_MSGDUMP, "VHT MCS", hw_mode->vht_mcs_set, sizeof(hw_mode->vht_mcs_set));
+
+    //Copy to capab
+    capability->ht_capab = hw_mode->ht_capab;
+    memcpy(capability->mcs_set, hw_mode->mcs_set, sizeof(hw_mode->mcs_set));
+    capability->ampdu_params = hw_mode->a_mpdu_params;
+    capability->vht_capab = hw_mode->vht_capab;
+    memcpy(capability->vht_mcs_set, hw_mode->vht_mcs_set, sizeof(hw_mode->vht_mcs_set));
 
 #ifdef CONFIG_IEEE80211AX
     /* Extract HE (WiFi6) capabilities for AP mode */
     struct he_capabilities *he_cap = &hw_mode->he_capab[IEEE80211_MODE_AP];
 
     if (he_cap != NULL && he_cap->he_supported) {
-        wifi_hal_info_print("%s:%d: Updating HE capabilities for WiFi6\n", __func__, __LINE__);
         capability->wifi6_supported = true;
         memcpy(capability->he_phy_cap, he_cap->phy_cap, HE_MAX_PHY_CAPAB_SIZE);
         memcpy(capability->he_mac_cap, he_cap->mac_cap, HE_MAX_MAC_CAPAB_SIZE);
         memcpy(capability->he_mcs_nss_set, he_cap->mcs, HE_MAX_MCS_CAPAB_SIZE);
         memcpy(capability->he_ppet, he_cap->ppet, HE_MAX_PPET_CAPAB_SIZE);
+        wpa_hexdump(MSG_MSGDUMP, "HE Mac cap", he_cap->mac_cap, sizeof(he_cap->mac_cap));
+        wpa_hexdump(MSG_MSGDUMP, "HE Phy cap", he_cap->phy_cap, sizeof(he_cap->phy_cap));
+        wpa_hexdump(MSG_MSGDUMP, "HE MCS NSS", he_cap->mcs, sizeof(he_cap->mcs));
+        wpa_hexdump(MSG_MSGDUMP, "HE ppet", he_cap->ppet, sizeof(he_cap->ppet));
 #if HOSTAPD_VERSION >= 210
         capability->he_6ghz_capa = he_cap->he_6ghz_capa;
+        wpa_hexdump(MSG_MSGDUMP, "HE 6ghz cap", &he_cap->he_6ghz_capa, sizeof(he_cap->he_6ghz_capa));
 #endif
     } else {
-        wifi_hal_dbg_print("%s:%d: HE capabilities not supported or not populated for band %d\n", 
+        wifi_hal_dbg_print("%s:%d: HE capabilities not supported or not populated for band %d\n",
             __func__, __LINE__, nl_band);
         capability->wifi6_supported = false;
         /* Ensure no stale HE capability data is exposed when WiFi6 is not supported */
@@ -8304,14 +8322,17 @@ INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band nl_b
     struct eht_capabilities *eht_cap = &hw_mode->eht_capab[IEEE80211_MODE_AP];
 
     if (eht_cap != NULL && eht_cap->eht_supported) {
-        wifi_hal_info_print("%s:%d: Updating EHT capabilities for WiFi7\n", __func__, __LINE__);
         capability->wifi7_supported = true;
         capability->eht_mac_cap = eht_cap->mac_cap;
         memcpy(capability->eht_phy_cap, eht_cap->phy_cap, EHT_PHY_CAPAB_LEN);
         memcpy(capability->eht_mcs, eht_cap->mcs, EHT_MCS_NSS_CAPAB_LEN);
         memcpy(capability->eht_ppet, eht_cap->ppet, EHT_PPE_THRESH_CAPAB_LEN);
+        wpa_hexdump(MSG_MSGDUMP, "EHT Mac cap", &eht_cap->mac_cap, sizeof(eht_cap->mac_cap));
+        wpa_hexdump(MSG_MSGDUMP, "EHT Phy cap", eht_cap->phy_cap, sizeof(eht_cap->phy_cap));
+        wpa_hexdump(MSG_MSGDUMP, "EHT MCS", eht_cap->mcs, sizeof(eht_cap->mcs));
+        wpa_hexdump(MSG_MSGDUMP, "EHT ppet", eht_cap->ppet, sizeof(eht_cap->ppet));
     } else {
-        wifi_hal_dbg_print("%s:%d: EHT capabilities not supported or not populated for band %d\n", 
+        wifi_hal_dbg_print("%s:%d: EHT capabilities not supported or not populated for band %d\n",
             __func__, __LINE__, nl_band);
         capability->wifi7_supported = false;
         capability->eht_mac_cap = 0;
@@ -8322,7 +8343,7 @@ INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band nl_b
 #endif /* HOSTAPD_VERSION >= 211 */
 #endif /* CONFIG_IEEE80211BE */
 
-    wifi_hal_info_print("%s:%d: Successfully retrieved radio capabilities for nlband:%d\n", 
+    wifi_hal_info_print("%s:%d: Successfully retrieved radio capabilities for nlband:%d\n",
         __func__, __LINE__, nl_band);
     return RETURN_OK;
 }
@@ -8379,8 +8400,8 @@ int copy_hw_features_to_radio_hw_modes(wifi_radio_info_t *radio, struct hostapd_
     for (int i = 0; i < iface->num_hw_features; i++) {
         struct hostapd_hw_modes *test_hw_mode = &iface->hw_features[i];
         if (mode == test_hw_mode->mode) {
-	    hw_mode_idx = i;
-	    break;
+            hw_mode_idx = i;
+            break;
         }
     }
     if(hw_mode_idx == -1) {
@@ -19767,10 +19788,11 @@ u8 *wifi_drv_get_ap_channel_report_ie(void *priv, u8 *eid)
 
 static int get_radio_txpwr_handler(struct nl_msg *msg, void *arg)
 {
-    unsigned int tx_pwr = 0;
+    int have_txpwr = 0;
     struct nlattr *tb[NL80211_ATTR_MAX + 1];
     struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
-    unsigned long *tx_pwr_dbm = (unsigned long *)arg;
+    struct txpwr_context *ctx = (struct txpwr_context *)arg;
+    unsigned long *tx_pwr_dbm = ctx->tx_power;
 
     if (nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL) <
         0) {
@@ -19778,13 +19800,59 @@ static int get_radio_txpwr_handler(struct nl_msg *msg, void *arg)
         return NL_SKIP;
     }
 
-    if (tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] == NULL) {
-        wifi_hal_error_print("%s:%d Radio tx power attribute is missing\n", __func__, __LINE__);
-        return NL_SKIP;
+    if (tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]) {
+        int txp_mbm = nla_get_s32(tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]);
+        long txp_dbm = txp_mbm / 100; /* mBm to dBm */
+        if (txp_dbm < 0) {
+            *tx_pwr_dbm = 0;
+        } else {
+            *tx_pwr_dbm = (unsigned long)txp_dbm;
+        }
+
+        have_txpwr = 1;
+    } else {
+        wifi_hal_error_print("%s:%d Radio tx power attribute is missing, Checking MLO link if supported.\n", __func__, __LINE__);
     }
 
-    tx_pwr = nla_get_u32(tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]);
-    *tx_pwr_dbm = tx_pwr / 100; /* mBm to dBm */
+#if HOSTAPD_VERSION >= 211 && defined(CONFIG_GENERIC_MLO)
+    if (!have_txpwr && tb[NL80211_ATTR_MLO_LINKS]) {
+        struct nlattr *link;
+        int rem;
+        int requested_index = ctx->radio_index;
+
+        nla_for_each_nested(link, tb[NL80211_ATTR_MLO_LINKS], rem) {
+            struct nlattr *ltb[NL80211_ATTR_MAX + 1];
+            if (nla_parse_nested(ltb, NL80211_ATTR_MAX, link, NULL) < 0)
+                continue;
+
+            if (ltb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]) {
+                int link_txp_mbm = nla_get_s32(ltb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]);
+                int link_id = ltb[NL80211_ATTR_MLO_LINK_ID] ? nla_get_u8(ltb[NL80211_ATTR_MLO_LINK_ID]) : -1;
+                if (link_id == requested_index) {
+                    long txp_dbm = link_txp_mbm / 100;
+
+                    if (txp_dbm < 0) {
+                        *tx_pwr_dbm = 0;
+                    } else {
+                        *tx_pwr_dbm = (unsigned long)txp_dbm;
+                    }
+
+                    have_txpwr = 1;
+                    wifi_hal_info_print("%s:%d MATCHED MLO link %d, txpower %ld dBm\n",__func__, __LINE__, link_id, txp_dbm);
+	                break;
+                }
+	        } else {
+                wifi_hal_error_print("%s:%d MLO link missing tx power attribute\n", __func__, __LINE__);
+            }
+        }
+    }
+#endif // HOSTAPD_VERSION >= 211 && CONFIG_GENERIC_MLO
+
+    if (!have_txpwr) {
+        wifi_hal_error_print("%s:%d Unable to determine tx power (radio or MLO link). Returning without update.\n", __func__, __LINE__);
+        return NL_SKIP;
+    }
+    wifi_hal_info_print("%s:%d Radio tx power:%lu \n", __func__, __LINE__, *tx_pwr_dbm);
     return NL_SKIP;
 }
 
@@ -19792,6 +19860,9 @@ static int get_radio_tx_power(wifi_interface_info_t *interface, ULONG *tx_power)
 {
     struct nl_msg *msg;
     int ret = RETURN_ERR;
+    struct txpwr_context ctx;
+    ctx.tx_power = tx_power;
+    ctx.radio_index = interface->rdk_radio_index;  // IMPORTANT
 
     wifi_hal_dbg_print("%s:%d Entering\n", __func__, __LINE__);
     msg = nl80211_drv_cmd_msg(g_wifi_hal.nl80211_id, interface, 0, NL80211_CMD_GET_INTERFACE);
@@ -19799,7 +19870,7 @@ static int get_radio_tx_power(wifi_interface_info_t *interface, ULONG *tx_power)
         wifi_hal_error_print("%s:%d Failed to create NL command\n", __func__, __LINE__);
         return RETURN_ERR;
     }
-    ret = nl80211_send_and_recv(msg, get_radio_txpwr_handler, tx_power, NULL, NULL);
+    ret = nl80211_send_and_recv(msg, get_radio_txpwr_handler, &ctx, NULL, NULL);
     if (ret) {
         wifi_hal_error_print("%s:%d Failed to send NL message %d %s\n", __func__, __LINE__, ret,
             nl_geterror(ret));
