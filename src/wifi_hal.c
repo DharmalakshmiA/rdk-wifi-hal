@@ -106,6 +106,7 @@ static unsigned char g_vapSmac[MAX_VAP][MAC_ADDRESS_LEN] = {'\0'};
 extern const struct wpa_driver_ops g_wpa_supplicant_driver_nl80211_ops;
 #endif
 
+wifi_RogueConfig_t g_rogueap_config;
 #if !defined(CMXB7_PORT)
 wifi_hal_priv_t g_wifi_hal;
 #endif
@@ -2616,6 +2617,19 @@ void wifi_hal_rnr_init(wifi_radio_index_t radio_index, const char *ssid)
     }
 }
 #endif // FEATURE_SINGLE_PHY
+
+wifi_RogueConfig_t *get_rogueap_obj(void)
+{
+    return &g_rogueap_config;
+}
+
+INT wifi_hal_set_rogueap_status(BOOL rogueapstatus)
+{
+	wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
+	rogueap_config->rogue_ap_enable = rogueapstatus;
+	wifi_hal_dbg_print("%s:%d: Input status : %d output-status : %d\n", __func__, __LINE__, rogueapstatus, rogueap_config->rogue_ap_enable);
+	return 0;
+}
 
 INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mode, INT dwell_time, UINT num, UINT *chan_list)
 {

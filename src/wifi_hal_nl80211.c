@@ -11540,6 +11540,7 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
         .ielen = ielen,
         .radio = radio };
 
+    wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
     /* Set initial values, needed in case its legacy mode AP with no HT, VHT or HE IEs present */
     bss->supp_chan_bw |= WIFI_CHANNELBANDWIDTH_20MHZ;
     bss->oper_chan_bw = WIFI_CHANNELBANDWIDTH_20MHZ;
@@ -11551,13 +11552,34 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
             ie_parsers[elem_id].name &&
             ie_parsers[elem_id].flags ) {
             parse_ie(&ie_parsers[elem_id], elem_id, ie[1], ie + 2, &ie_buffer, bss);
-        } else if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
-	    wifi_hal_dbg_print("%s:%d Scanned BSSID: %s\n", __func__, __LINE__, bss->ssid);
-	    if (strcmp(bss->ssid, "Xfinity Mobile") == 0) {
-		wifi_hal_dbg_print("%s:%d Parsing vendor IE\n", __func__, __LINE__);
-		parse_vendor(ie[1], ie + 2);
-	    }
-        }
+        } 
+
+	if (rogueap_config->rogue_ap_enable) {
+		if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
+			mac_addr_str_t bssid_str;
+			wifi_hal_dbg_print("%s:%d Scanned SSID: %s BSSID:%s\n", __func__, __LINE__, bss->ssid, 
+					to_mac_str(bss->bssid, bssid_str));
+			wifi_interface_info_t *interface;
+                        CHAR ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
+			interface = hash_map_get_first(radio->interface_map);
+			while (interface != NULL) {
+				if (strstr(interface->vap_info.vap_name, "private") ||
+						strstr(interface->vap_info.vap_name, "hotspot_open")) {
+
+					strncpy(ssid_input, interface->vap_info.u.bss_info.ssid,
+							sizeof(ssid_input)-1);
+					break;
+				}
+				interface = hash_map_get_next(radio->interface_map, interface);
+			}
+			wifi_hal_dbg_print("%s:%d Vap-name : %s SSID : %s\n", __func__, __LINE__, interface->vap_info.vap_name, interface->vap_info.u.bss_info.ssid);
+
+			if (strcmp(bss->ssid, ssid_input) == 0) {
+				wifi_hal_dbg_print("%s:%d Parsing vendor IE\n", __func__, __LINE__);
+				parse_vendor(ie[1], ie + 2);
+			}
+		}
+	}
         ielen -= ie[1] + 2;
         ie += ie[1] + 2;
     }
