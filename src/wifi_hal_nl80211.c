@@ -11399,18 +11399,96 @@ struct comcast_payload {
     uint8_t hmac[16];
 };
 
-static const uint8_t comcast_aes_key[16] = {
-    0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,
-    0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff,0x10
-};
+#define COMCAST_HMAC_KEY_LEN       32
+#define COMCAST_HMAC_TRUNC_LEN     16
+#define COMCAST_BLOCK_LEN          16
+#define COMCAST_TS_WINDOW_MS       10000
+#define COMCAST_AES_KEY_LEN        16
+#define KeyGenBinaryPath "/usr/bin/rdkssacli"
+#define rogue_encr_parameter "{STOR=GET,SRC=rogueencr,DST=/dev/stdout}"
+#define rogue_hash_parameter "{STOR=GET,SRC=roguehash,DST=/dev/stdout}"
 
-static const uint8_t comcast_hmac_key[32] = {
-    0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,
-    0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,
-    0xaa,0xbb,0xcc,0xdd,0xee,0xff,0x10,0x20,
-    0x30,0x40,0x50,0x60,0x70,0x80,0x90,0xa0
-};
+static int read_key_from_binary(const char *param,
+                                u8 *key,
+                                size_t key_len)
+{
+    FILE *pfp = NULL;
+    char line[256];
+    char *token = NULL;
+    char *saveptr = NULL;
+    size_t idx = 0;
 
+    if (!param || !key || !key_len) {
+        wpa_printf(MSG_ERROR,
+            "[%s] Invalid input param=%p key=%p key_len=%zu",
+            __func__, param, key, key_len);
+        return -1;
+    }
+
+    if (access(KeyGenBinaryPath, F_OK) == -1) {
+        wpa_printf(MSG_ERROR,
+            "[%s] Unable to access binary path: %s",
+            __func__, KeyGenBinaryPath);
+        return -1;
+    }
+
+    pfp = v_secure_popen("r", "%s \"%s\"",
+                         KeyGenBinaryPath, param);
+    if (!pfp) {
+        wpa_printf(MSG_ERROR,
+            "[%s] v_secure_popen failed for param=%s",
+            __func__, param);
+        return -1;
+    }
+
+    while (fgets(line, sizeof(line), pfp) &&
+           idx < key_len) {
+
+        saveptr = NULL;
+        token = strtok_r(line, ", \r\n\t", &saveptr);
+
+        while (token && idx < key_len) {
+            char *end = NULL;
+            unsigned long val =
+                strtoul(token, &end, 0);
+
+            if (*end == '\0' && val <= 0xFF) {
+                key[idx++] = (u8)val;
+            } else {
+                wpa_printf(MSG_ERROR,
+                    "[%s] Invalid token='%s' val=%lu",
+                    __func__, token, val);
+            }
+
+            token = strtok_r(NULL,
+                             ", \r\n\t",
+                             &saveptr);
+        }
+    }
+
+    v_secure_pclose(pfp);
+
+    if (idx != key_len) {
+        wpa_printf(MSG_ERROR,
+            "[%s] Key length mismatch expected=%zu actual=%zu",
+            __func__, key_len, idx);
+
+        forced_memzero(key, key_len);
+        return -1;
+    }
+
+    wpa_hexdump(MSG_DEBUG,
+        "Comcast Key Read",
+        key,
+        key_len);
+
+    return 0;
+}
+
+
+/* -------------------------------------------------- */
+/* Timestamp Validation                               */
+/* -------------------------------------------------- */
 static int validate_timestamp(uint64_t ts)
 {
     struct os_time now;
@@ -11418,109 +11496,250 @@ static int validate_timestamp(uint64_t ts)
     long long diff;
 
     os_get_time(&now);
-    now_ms = (uint64_t)now.sec * 1000 + now.usec / 1000;
 
-    diff = llabs((long long)now_ms - (long long)ts);
+    now_ms = ((uint64_t)now.sec * 1000) +
+             (now.usec / 1000);
 
-    wifi_hal_dbg_print("[%s %d] now.sec=%ld now.usec=%ld now_ms=%llu ts=%llu diff=%lld\n",
-            __func__, __LINE__,
-            now.sec,
-            now.usec,
-            (unsigned long long)now_ms,
-            (unsigned long long)ts,
+    diff = llabs((long long)now_ms -
+                 (long long)ts);
+
+    wifi_hal_dbg_print(
+        "[%s] now_ms=%llu rx_ts=%llu diff=%lld\n",
+        __func__,
+        (unsigned long long)now_ms,
+        (unsigned long long)ts,
+        diff);
+
+    if (diff > COMCAST_TS_WINDOW_MS) {
+        wifi_hal_dbg_print(
+            "[%s] Timestamp INVALID diff=%lld\n",
+            __func__,
             diff);
-
-    if (diff > 10000) {   // 10 sec window (comment said 60 earlier)
-        wifi_hal_dbg_print("[%s %d] Timestamp INVALID (diff=%lld)\n",
-                __func__, __LINE__, diff);
         return -1;
     }
 
-    wifi_hal_dbg_print("[%s %d] Timestamp VALID (diff=%lld)\n",
-            __func__, __LINE__, diff);
-	return 0;
-}
+    wifi_hal_dbg_print(
+        "[%s] Timestamp VALID\n",
+        __func__);
 
-static void decrypt_payload(uint8_t *data)
-{
-    void *ctx;
-
-    wpa_hexdump(MSG_DEBUG, "Ciphertext before decrypt", data, 16);
-
-    ctx = aes_decrypt_init(comcast_aes_key, sizeof(comcast_aes_key));
-    if (!ctx)
-        return;
-
-    aes_decrypt(ctx, data, data);
-
-    aes_decrypt_deinit(ctx);
-
-     wpa_hexdump(MSG_DEBUG, "Plaintext after decrypt", data, 16);
-}
-
-static int verify_comcast_hmac(struct comcast_payload *p)
-{
-    uint8_t calc[32];
-
-    hmac_sha256(comcast_hmac_key,
-                sizeof(comcast_hmac_key),
-                (uint8_t *)p,
-                16,               // encrypted payload
-                calc);
-   
-    wpa_hexdump(MSG_DEBUG, "Calculated HMAC", calc, 16); 
-    wpa_hexdump(MSG_DEBUG, "Received HMAC", p->hmac, 16);
-    if (memcmp(calc, p->hmac, 16) != 0) {
-        wifi_hal_dbg_print("[%s %d] HMAC MISMATCH\n",
-                __func__, __LINE__);
-	return -1;
-    }
-    wifi_hal_dbg_print("[%s %d] HMAC VALID\n",
-            __func__, __LINE__);
     return 0;
 }
 
+/* -------------------------------------------------- */
+/* Decrypt Payload using runtime key                  */
+/* -------------------------------------------------- */
+static int decrypt_payload(uint8_t *data, size_t len)
+{
+    void *ctx;
+    u8 aes_key[COMCAST_AES_KEY_LEN];
+    size_t i;
+
+    if (!data) {
+        wifi_hal_dbg_print(
+            "[%s] NULL data\n",
+            __func__);
+        return -1;
+    }
+
+    if (len % COMCAST_BLOCK_LEN) {
+        wifi_hal_dbg_print(
+            "[%s] Invalid len=%zu\n",
+            __func__,
+            len);
+        return -1;
+    }
+
+    if (read_key_from_binary(
+            rogue_encr_parameter,
+            aes_key,
+            sizeof(aes_key)) < 0) {
+
+        wifi_hal_dbg_print(
+            "[%s] Failed to read AES key\n",
+            __func__);
+        return -1;
+    }
+
+    wpa_hexdump(MSG_DEBUG,
+        "RX Ciphertext Before Decrypt",
+        data,
+        len);
+
+    wpa_hexdump(MSG_DEBUG,
+        "AES Decryption Key",
+        aes_key,
+        sizeof(aes_key));
+
+    ctx = aes_decrypt_init(
+            aes_key,
+            sizeof(aes_key));
+    if (!ctx) {
+        wifi_hal_dbg_print(
+            "[%s] aes_decrypt_init failed\n",
+            __func__);
+
+        forced_memzero(aes_key,
+                       sizeof(aes_key));
+        return -1;
+    }
+
+    for (i = 0; i < len; i += COMCAST_BLOCK_LEN)
+        aes_decrypt(ctx, data + i, data + i);
+
+    aes_decrypt_deinit(ctx);
+
+    forced_memzero(aes_key,
+                   sizeof(aes_key));
+
+    wpa_hexdump(MSG_DEBUG,
+        "RX Plaintext After Decrypt",
+        data,
+        len);
+
+    return 0;
+}
+
+/* -------------------------------------------------- */
+/* Verify HMAC using runtime key                      */
+/* -------------------------------------------------- */
+static int verify_comcast_hmac(
+        struct comcast_payload *p)
+{
+    u8 hmac_key[COMCAST_HMAC_KEY_LEN];
+    u8 calc[32];
+
+    if (!p) {
+        wifi_hal_dbg_print(
+            "[%s] NULL payload\n",
+            __func__);
+        return -1;
+    }
+
+    if (read_key_from_binary(
+            rogue_hash_parameter,
+            hmac_key,
+            sizeof(hmac_key)) < 0) {
+
+        wifi_hal_dbg_print(
+            "[%s] Failed to read HMAC key\n",
+            __func__);
+        return -1;
+    }
+
+    wpa_hexdump(MSG_DEBUG,
+        "HMAC Verify Input",
+        (u8 *)p,
+        COMCAST_BLOCK_LEN);
+
+    wpa_hexdump(MSG_DEBUG,
+        "HMAC Verification Key",
+        hmac_key,
+        sizeof(hmac_key));
+
+    hmac_sha256(
+        hmac_key,
+        sizeof(hmac_key),
+        (u8 *)p,
+        COMCAST_BLOCK_LEN,
+        calc);
+
+    forced_memzero(hmac_key,
+                   sizeof(hmac_key));
+
+    wpa_hexdump(MSG_DEBUG,
+        "Calculated Full HMAC",
+        calc,
+        sizeof(calc));
+
+    wpa_hexdump(MSG_DEBUG,
+        "Calculated Truncated HMAC",
+        calc,
+        COMCAST_HMAC_TRUNC_LEN);
+
+    wpa_hexdump(MSG_DEBUG,
+        "Received HMAC",
+        p->hmac,
+        COMCAST_HMAC_TRUNC_LEN);
+
+    if (memcmp(calc,
+               p->hmac,
+               COMCAST_HMAC_TRUNC_LEN) != 0) {
+
+        wifi_hal_dbg_print(
+            "[%s] HMAC MISMATCH\n",
+            __func__);
+
+        forced_memzero(calc,
+                       sizeof(calc));
+        return -1;
+    }
+
+    forced_memzero(calc,
+                   sizeof(calc));
+
+    wifi_hal_dbg_print(
+        "[%s] HMAC VALID\n",
+        __func__);
+
+    return 0;
+}
+
+/* -------------------------------------------------- */
+/* Main IE Decode                                     */
+/* -------------------------------------------------- */
 int decrypt_comcast_ie(uint8_t *data, size_t len)
 {
     struct comcast_payload payload;
 
-    if (len < sizeof(payload))
+    if (!data) {
+        wifi_hal_dbg_print(
+            "[%s] NULL input\n",
+            __func__);
         return -1;
+    }
+
+    if (len < sizeof(payload)) {
+        wifi_hal_dbg_print(
+            "[%s] Invalid len=%zu need=%zu\n",
+            __func__,
+            len,
+            sizeof(payload));
+        return -1;
+    }
 
     memcpy(&payload, data, sizeof(payload));
 
-    wifi_hal_dbg_print("[%s %d] Comcast IE raw payload received len=%zu\n",
-        __func__, __LINE__, len);
-
-    wpa_hexdump(MSG_DEBUG, "RX Encrypted payload", data, 16);
-
     wpa_hexdump(MSG_DEBUG,
-        "RX HMAC",
-        data + 16,
-        16);
+        "RX Raw Payload + HMAC",
+        data,
+        sizeof(payload));
 
-    /* Step 1: verify HMAC */
-    if (verify_comcast_hmac(&payload) < 0) {
-        wifi_hal_dbg_print("[%s %d]Invalid Comcast IE HMAC\n", __func__, __LINE__);
+    if (verify_comcast_hmac(&payload) < 0)
         return -1;
-    }
 
-    /* Step 2: decrypt payload */
-    decrypt_payload((uint8_t *)&payload);
-
-    wifi_hal_dbg_print("[%s %d]Decrypted timestamp: %llu Feature flag: %u\n", __func__, __LINE__, 
-           (unsigned long long)payload.timestamp, payload.feature_flag);
-
-    /* Step 3: timestamp validation */
-    if (validate_timestamp(payload.timestamp) < 0) {
-        wifi_hal_dbg_print("[%s %d]Timestamp expired\n", __func__, __LINE__);
+    if (decrypt_payload(
+            (u8 *)&payload,
+            COMCAST_BLOCK_LEN) < 0)
         return -1;
-    }
 
-    wifi_hal_dbg_print("[%s %d]Valid Comcast Vendor IE\n", __func__, __LINE__);
+    wifi_hal_dbg_print(
+        "[%s] timestamp=%llu feature=%u\n",
+        __func__,
+        (unsigned long long)
+        payload.timestamp,
+        payload.feature_flag);
+
+    if (validate_timestamp(
+            payload.timestamp) < 0)
+        return -1;
+
+    wifi_hal_dbg_print(
+        "[%s] Valid Comcast Vendor IE\n",
+        __func__);
 
     return 0;
 }
+
 
 static void parse_vendor(unsigned char len, unsigned char *data)
 {
