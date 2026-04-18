@@ -11417,6 +11417,7 @@ static int read_key_from_binary(const char *param,
     char *token = NULL;
     char *saveptr = NULL;
     size_t idx = 0;
+    char cmd[256];
 
     if (!param || !key || !key_len) {
         wpa_printf(MSG_ERROR,
@@ -11432,8 +11433,14 @@ static int read_key_from_binary(const char *param,
         return -1;
     }
 
-    pfp = v_secure_popen("r", "%s \"%s\"",
-                         KeyGenBinaryPath, param);
+    snprintf(cmd, sizeof(cmd),
+         "%s \"%s\"",
+         KeyGenBinaryPath,
+         param);
+
+
+    pfp = popen(cmd, "r");
+
     if (!pfp) {
         wpa_printf(MSG_ERROR,
             "[%s] v_secure_popen failed for param=%s",
@@ -11466,7 +11473,7 @@ static int read_key_from_binary(const char *param,
         }
     }
 
-    v_secure_pclose(pfp);
+    pclose(pfp);
 
     if (idx != key_len) {
         wpa_printf(MSG_ERROR,
