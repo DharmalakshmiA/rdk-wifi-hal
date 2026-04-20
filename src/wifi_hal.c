@@ -2642,9 +2642,9 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
     unsigned int freq_list[MAX_FREQ_LIST_SIZE], i;
     ssid_t  ssid_list[8];
     int op_class, freq_num = 0;
-
-    wifi_hal_stats_dbg_print("%s:%d: index: %d mode: %d dwell time: %d\n", __func__, __LINE__, index,
-        scan_mode, dwell_time);
+    wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
+    wifi_hal_stats_dbg_print("%s:%d: index: %d mode: %d dwell time: %d rogue-ap-status : %d\n", __func__, __LINE__, index,
+        scan_mode, dwell_time, rogueap_config->rogue_ap_enable);
 
     RADIO_INDEX_ASSERT(index);
 
@@ -2659,18 +2659,28 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
         return RETURN_ERR;
     }
 
-    interface = hash_map_get_first(radio->interface_map);
+    if (rogueap_config->rogue_ap_enable == false) {
+	    interface = hash_map_get_first(radio->interface_map);
 
-    while (interface != NULL) {
+	    while (interface != NULL) {
 
-        if (interface->vap_info.vap_mode == wifi_vap_mode_sta) {
-            found = true;
-            break;
-        }
+		    if (interface->vap_info.vap_mode == wifi_vap_mode_sta) {
+			    found = true;
+			    break;
+		    }
 
-        interface = hash_map_get_next(radio->interface_map, interface);
+		    interface = hash_map_get_next(radio->interface_map, interface);
+	    }
+    } else {
+	    interface = get_private_vap_interface(radio);
+	    if (interface == NULL) {
+		    wifi_hal_stats_error_print("%s:%d: [SCAN] private interface for radio '%s' not found\n",
+				    __func__, __LINE__, radio->name);
+		    return WIFI_HAL_ERROR;
+	    }
+	    found = true;
+
     }
-
     if (found == false) {
         wifi_hal_stats_error_print("%s:%d:Could not find sta interface on radio index: %d, start scan failure\n", 
             __func__, __LINE__, index);
@@ -2737,9 +2747,9 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
         wifi_hal_stats_error_print("%s:%d: No valid channels\n", __func__, __LINE__);
         return RETURN_ERR;
     }
-    
     strcpy(ssid_list[0], get_vap_ssid(vap));
     wifi_hal_stats_info_print("%s:%d: Scan Frequencies:%s \n", __func__, __LINE__, chan_list_str);
+    wifi_hal_stats_info_print("%s:%d: SSID:%s \n", __func__, __LINE__, ssid_list[0]);
 
     pthread_mutex_lock(&interface->scan_info_mutex);
     hash_map_cleanup(interface->scan_info_map);
