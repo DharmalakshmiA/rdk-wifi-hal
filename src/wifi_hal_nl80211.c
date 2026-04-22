@@ -11478,6 +11478,8 @@ static const struct ie_parse wifi_parsers[] = {
 };
 #endif
 
+
+#if 0 // ROGUE DECRYPTION LOGIC
 struct comcast_payload {
     uint64_t timestamp;
     uint8_t feature_flag;
@@ -11578,7 +11580,7 @@ static int read_key_from_binary(const char *param,
     return 0;
 }
 
-
+#endif
 /* -------------------------------------------------- */
 /* Timestamp Validation                               */
 /* -------------------------------------------------- */
@@ -11618,6 +11620,7 @@ static int validate_timestamp(uint64_t ts)
     return 0;
 }
 
+#if 0
 /* -------------------------------------------------- */
 /* Decrypt Payload using runtime key                  */
 /* -------------------------------------------------- */
@@ -11832,7 +11835,49 @@ int decrypt_comcast_ie(uint8_t *data, size_t len)
 
     return 0;
 }
+#endif
 
+int decrypt_comcast_ie(uint8_t *data, size_t len)
+{
+    u64 timestamp = 0;
+
+    if (!data) {
+        wifi_hal_dbg_print(
+            "[%s] NULL input\n",
+            __func__);
+        return -1;
+    }
+
+    if (len < sizeof(timestamp)) {
+        wifi_hal_dbg_print(
+            "[%s] Invalid len=%zu need=%zu\n",
+            __func__,
+            len,
+            sizeof(timestamp));
+        return -1;
+    }
+
+    memcpy(&timestamp, data, sizeof(timestamp));
+
+    wpa_hexdump(MSG_DEBUG,
+        "RX Comcast Timestamp",
+        data,
+        sizeof(timestamp));
+
+    wifi_hal_dbg_print(
+        "[%s] timestamp=%llu\n",
+        __func__,
+        (unsigned long long) timestamp);
+
+    if (validate_timestamp(timestamp) < 0)
+        return -1;
+
+    wifi_hal_dbg_print(
+        "[%s] Valid Comcast Vendor IE\n",
+        __func__);
+
+    return 0;
+}
 
 static void parse_vendor(unsigned char len, unsigned char *data)
 {
