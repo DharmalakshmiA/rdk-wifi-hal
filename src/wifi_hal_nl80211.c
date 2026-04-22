@@ -11943,24 +11943,37 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
 			wifi_hal_dbg_print("%s:%d Scanned SSID: %s BSSID:%s\n", __func__, __LINE__, bss->ssid, 
 					to_mac_str(bss->bssid, bssid_str));
 			wifi_interface_info_t *interface;
-                        CHAR ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
+			CHAR ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
 			interface = hash_map_get_first(radio->interface_map);
+
 			while (interface != NULL) {
+
 				if (strstr(interface->vap_info.vap_name, "private") ||
 						strstr(interface->vap_info.vap_name, "hotspot_open")) {
 
-					strncpy(ssid_input, interface->vap_info.u.bss_info.ssid,
-							sizeof(ssid_input)-1);
-					break;
-				}
-				interface = hash_map_get_next(radio->interface_map, interface);
-			}
-			wifi_hal_dbg_print("%s:%d Vap-name : %s SSID : %s\n", __func__, __LINE__, interface->vap_info.vap_name, interface->vap_info.u.bss_info.ssid);
+					wifi_hal_dbg_print(
+							"%s:%d Vap-name:%s SSID:%s\n",
+							__func__, __LINE__,
+							interface->vap_info.vap_name,
+							interface->vap_info.u.bss_info.ssid);
 
-			if (strcmp(bss->ssid, ssid_input) == 0) {
-				wifi_hal_dbg_print("%s:%d Parsing vendor IE\n", __func__, __LINE__);
-				parse_vendor(ie[1], ie + 2);
+					if (strcmp(bss->ssid, interface->vap_info.u.bss_info.ssid) == 0) {
+
+						wifi_hal_dbg_print(
+								"%s:%d Parsing vendor IE for %s\n",
+								__func__, __LINE__,
+								interface->vap_info.vap_name);
+
+						parse_vendor(ie[1], ie + 2);
+						break;
+					}
+				}
+
+				interface = hash_map_get_next(
+						radio->interface_map, interface);
 			}
+
+
 		}
 	}
         ielen -= ie[1] + 2;
@@ -12142,9 +12155,11 @@ static int scan_info_handler(struct nl_msg *msg, void *arg)
 
     if (ie) {
         // Parse standard IEs including SSID
-             parse_ies(ie, len, scan_info_ap, scan_radio);
+            wifi_hal_dbg_print("[%s %d] Probe passing\n", __func__, __LINE__); 
+	    parse_ies(ie, len, scan_info_ap, scan_radio);
     } else {
         // Parse IEs from beacon IEs (including SSID)
+            wifi_hal_dbg_print("[%s %d] Beacon passing\n", __func__, __LINE__); 
         parse_ies(beacon_ies, beacon_ie_len, scan_info_ap, scan_radio);
     }
     wifi_hal_dbg_print("[%s %d] scan-info ssid : %s vap-ssid : %s\n", __func__, __LINE__, scan_info_ap->ssid, get_vap_ssid(vap));
