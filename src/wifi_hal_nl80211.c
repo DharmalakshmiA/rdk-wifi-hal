@@ -77,9 +77,11 @@
 #include <rdk_nl80211_hal.h>
 #endif
 
+#if 0
 #include "crypto/aes.h"
 #include "crypto/sha256.h"
 #include "utils/common.h"
+#endif
 
 #define AP_UNABLE_TO_HANDLE_ADDITIONAL_ASSOCIATIONS 17
 #define OVS_MODULE "/sys/module/openvswitch"
