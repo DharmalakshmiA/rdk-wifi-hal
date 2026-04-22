@@ -11583,6 +11583,8 @@ static int read_key_from_binary(const char *param,
 }
 
 #endif
+
+#define COMCAST_TS_WINDOW_MS       10000
 /* -------------------------------------------------- */
 /* Timestamp Validation                               */
 /* -------------------------------------------------- */
@@ -11943,7 +11945,6 @@ static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
 			wifi_hal_dbg_print("%s:%d Scanned SSID: %s BSSID:%s\n", __func__, __LINE__, bss->ssid, 
 					to_mac_str(bss->bssid, bssid_str));
 			wifi_interface_info_t *interface;
-			CHAR ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
 			interface = hash_map_get_first(radio->interface_map);
 
 			while (interface != NULL) {

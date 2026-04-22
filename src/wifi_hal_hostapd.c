@@ -1333,7 +1333,6 @@ int update_hostap_bss(wifi_interface_info_t *interface)
     }
 #endif /* defined(CONFIG_MBO) */
 
-    conf->comcast_vendor_ie = 1;
     return RETURN_OK;
 }
 
