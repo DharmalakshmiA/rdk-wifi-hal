@@ -11506,63 +11506,9 @@ static int g_comcast_hmac_key_loaded;
 
 
 /* -------------------------------------------------- */
-/* Load AES key once                                  */
-/* -------------------------------------------------- */
-static int comcast_load_aes_key(void)
-{
-    int ret;
-
-    wifi_hal_dbg_print("[%s] Loading AES key\n", __func__);
-
-    ret = read_key_from_binary(
-            rogue_encr_parameter,
-            g_comcast_aes_key,
-            sizeof(g_comcast_aes_key));
-
-    if (!ret) {
-        g_comcast_aes_key_loaded = 1;
-
-        wpa_hexdump(MSG_DEBUG,
-            "Cached AES Key",
-            g_comcast_aes_key,
-            sizeof(g_comcast_aes_key));
-    }
-
-    return ret;
-}
-
-
-/* -------------------------------------------------- */
-/* Load HMAC key once                                 */
-/* -------------------------------------------------- */
-static int comcast_load_hmac_key(void)
-{
-    int ret;
-
-    wifi_hal_dbg_print("[%s] Loading HMAC key\n", __func__);
-
-    ret = read_key_from_binary(
-            rogue_hash_parameter,
-            g_comcast_hmac_key,
-            sizeof(g_comcast_hmac_key));
-
-    if (!ret) {
-        g_comcast_hmac_key_loaded = 1;
-
-        wpa_hexdump(MSG_DEBUG,
-            "Cached HMAC Key",
-            g_comcast_hmac_key,
-            sizeof(g_comcast_hmac_key));
-    }
-
-    return ret;
-}
-
-
-/* -------------------------------------------------- */
 /* Read key from binary                               */
 /* -------------------------------------------------- */
-static int read_key_from_binary(const char *param,
+int read_key_from_binary(const char *param,
                                 u8 *key,
                                 size_t key_len)
 {
@@ -11632,6 +11578,58 @@ static int read_key_from_binary(const char *param,
     return 0;
 }
 
+/* -------------------------------------------------- */
+/* Load AES key once                                  */
+/* -------------------------------------------------- */
+static int comcast_load_aes_key(void)
+{
+    int ret;
+
+    wifi_hal_dbg_print("[%s] Loading AES key\n", __func__);
+
+    ret = read_key_from_binary(
+            rogue_encr_parameter,
+            g_comcast_aes_key,
+            sizeof(g_comcast_aes_key));
+
+    if (!ret) {
+        g_comcast_aes_key_loaded = 1;
+
+        wpa_hexdump(MSG_DEBUG,
+            "Cached AES Key",
+            g_comcast_aes_key,
+            sizeof(g_comcast_aes_key));
+    }
+
+    return ret;
+}
+
+
+/* -------------------------------------------------- */
+/* Load HMAC key once                                 */
+/* -------------------------------------------------- */
+static int comcast_load_hmac_key(void)
+{
+    int ret;
+
+    wifi_hal_dbg_print("[%s] Loading HMAC key\n", __func__);
+
+    ret = read_key_from_binary(
+            rogue_hash_parameter,
+            g_comcast_hmac_key,
+            sizeof(g_comcast_hmac_key));
+
+    if (!ret) {
+        g_comcast_hmac_key_loaded = 1;
+
+        wpa_hexdump(MSG_DEBUG,
+            "Cached HMAC Key",
+            g_comcast_hmac_key,
+            sizeof(g_comcast_hmac_key));
+    }
+
+    return ret;
+}
 
 /* -------------------------------------------------- */
 /* Timestamp Validation                               */
