@@ -11878,90 +11878,279 @@ int decrypt_comcast_ie(uint8_t *data, size_t len)
 
     return 0;
 }
-static void parse_vendor(unsigned char len, unsigned char *data)
+static int parse_vendor(unsigned char len, unsigned char *data)
 {
-    if (len < 4)
-        return;
-
-    if (data[0] != 0xD8 ||
-        data[1] != 0x9C ||
-        data[2] != 0x8E)
-        return;
-
-    uint8_t type = data[3];
-
-    if (type != 0x01)
-        return;
-
-    wifi_hal_dbg_print("%s:%d Comcast vendor IE received\n", __func__, __LINE__);
-    decrypt_comcast_ie(&data[4], len - 4);
-    return;
-#if 0
-    if (len < 3) {
-        return;
+    if (len < 4) {
+        wifi_hal_dbg_print("%s:%d vendor IE too short len=%u\n",
+                           __func__, __LINE__, len);
+        return -1;
     }
 
-    if (len >= 4 && memcmp(data, ms_oui, 3) == 0) {
-        if (data[3] < ARRAY_SIZE(wifi_parsers) &&
-            wifi_parsers[data[3]].name &&
-            wifi_parsers[data[3]].flags) {
-            return;
-        }
-        return;
+    /* ADD: always log OUI for traceability */
+    wifi_hal_dbg_print("%s:%d vendor IE OUI=%02x:%02x:%02x type=%02x\n",
+                       __func__, __LINE__,
+                       data[0], data[1], data[2], data[3]);
+
+    if (data[0] != 0xD8 || data[1] != 0x9C || data[2] != 0x8E) {
+        wifi_hal_dbg_print("%s:%d non-Comcast OUI, skip\n",
+                           __func__, __LINE__);
+        return -1;
     }
-#endif
+
+    if (data[3] != 0x01) {
+        wifi_hal_dbg_print("%s:%d Comcast OUI but unexpected type=%02x\n",
+                           __func__, __LINE__, data[3]);
+        return -1;
+    }
+
+    wifi_hal_info_print("%s:%d Comcast vendor IE found, "
+                        "payload_len=%u\n",
+                        __func__, __LINE__, len - 4);
+
+    int rc = decrypt_comcast_ie(&data[4], len - 4);
+
+    /* ADD: log decrypt result explicitly */
+    wifi_hal_info_print("%s:%d decrypt_comcast_ie rc=%d (%s)\n",
+                        __func__, __LINE__, rc,
+                        rc == 0 ? "VALID" : "INVALID");
+    return rc;
 }
 
-static void parse_ies(unsigned char *ie, int ielen, wifi_bss_info_t *bss,
-    wifi_radio_info_t *radio)
+static bool is_known_gateway(unsigned int vap_index,
+                              const mac_address_t bssid)
+{
+    hal_known_ap_list_t kap;
+    mac_addr_str_t bssid_str;
+
+    /* ADD: log what we're looking up */
+    wifi_hal_dbg_print("%s:%d lookup vap_index=%u bssid=%s\n",
+                       __func__, __LINE__, vap_index,
+                       to_mac_str(bssid, bssid_str));
+
+    if (wifi_hal_get_known_aps((INT)vap_index, &kap) != RETURN_OK) {
+        wifi_hal_error_print("%s:%d wifi_hal_get_known_aps failed "
+                             "vap_index=%u\n",
+                             __func__, __LINE__, vap_index);
+        return false;
+    }
+
+    /* ADD: log the table we're searching against */
+    wifi_hal_dbg_print("%s:%d known-AP table for vap_index=%u:\n",
+                       __func__, __LINE__, vap_index);
+    for (unsigned int k = 0; k < HAL_MAX_KNOWN_APS; k++) {
+        if (kap.table[k].valid) {
+            mac_addr_str_t slot_str;
+            wifi_hal_dbg_print("%s:%d   slot=%u mac=%s\n",
+                               __func__, __LINE__, k,
+                               to_mac_str(kap.table[k].mac, slot_str));
+        }
+    }
+
+    for (unsigned int k = 0; k < HAL_MAX_KNOWN_APS; k++) {
+        if (kap.table[k].valid &&
+            memcmp(kap.table[k].mac, bssid, sizeof(mac_address_t)) == 0) {
+            /* ADD: log which slot matched */
+            wifi_hal_info_print("%s:%d HIT vap_index=%u bssid=%s "
+                                "matched slot=%u\n",
+                                __func__, __LINE__,
+                                vap_index, bssid_str, k);
+            return true;
+        }
+    }
+
+    /* ADD: explicit miss log */
+    wifi_hal_info_print("%s:%d MISS vap_index=%u bssid=%s "
+                        "not in known-AP table\n",
+                        __func__, __LINE__, vap_index, bssid_str);
+    return false;
+}
+
+/* ----------------------------------------------------------------
+ * parse_ies — updated with per-VAP rogue classification
+ * ---------------------------------------------------------------- */
+static void parse_ies(unsigned char *ie, int ielen,
+                      wifi_bss_info_t *bss,
+                      wifi_radio_info_t *radio)
 {
     struct parse_ies_data ie_buffer = {
-        .ie = ie,
+        .ie    = ie,
         .ielen = ielen,
-        .radio = radio };
+        .radio = radio
+    };
 
     wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
-    /* Set initial values, needed in case its legacy mode AP with no HT, VHT or HE IEs present */
-    bss->supp_chan_bw |= WIFI_CHANNELBANDWIDTH_20MHZ;
-    bss->oper_chan_bw = WIFI_CHANNELBANDWIDTH_20MHZ;
 
+    /* Set initial values — needed for legacy APs with no HT/VHT/HE IEs */
+    bss->supp_chan_bw |= WIFI_CHANNELBANDWIDTH_20MHZ;
+    bss->oper_chan_bw  = WIFI_CHANNELBANDWIDTH_20MHZ;
+
+    /* ---- Pre-scan: find the matching interface for this radio ----
+     * Determine VAP type (private / hotspot) and capture vap_index
+     * once before entering the IE loop.
+     * ------------------------------------------------------------ */
+    wifi_interface_info_t *matched_iface     = NULL;
+    bool                   is_private_vap    = false;
+    bool                   is_hotspot_vap    = false;
+    unsigned int           matched_vap_index = 0;
+    CHAR                   ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
+
+    if (rogueap_config->rogue_ap_enable) {
+        wifi_interface_info_t *iface =
+            hash_map_get_first(radio->interface_map);
+
+        while (iface != NULL) {
+            const char *vname = iface->vap_info.vap_name;
+
+            if (strstr(vname, "private")) {
+                matched_iface  = iface;
+                is_private_vap = true;
+                strncpy(ssid_input,
+                        iface->vap_info.u.bss_info.ssid,
+                        sizeof(ssid_input) - 1);
+                matched_vap_index = iface->vap_info.vap_index;
+                break;
+            } else if (strstr(vname, "hotspot_open")) {
+                /* Keep looking — prefer private if both present */
+                if (!matched_iface) {
+                    matched_iface  = iface;
+                    is_hotspot_vap = true;
+                    strncpy(ssid_input,
+                            iface->vap_info.u.bss_info.ssid,
+                            sizeof(ssid_input) - 1);
+                    matched_vap_index = iface->vap_info.vap_index;
+                }
+            }
+            iface = hash_map_get_next(radio->interface_map, iface);
+        }
+
+        if (matched_iface == NULL) {
+            wifi_hal_dbg_print(
+                "%s:%d no private/hotspot iface on radio %s, "
+                "skipping rogue check\n",
+                __func__, __LINE__, radio->name);
+        } else {
+            wifi_hal_dbg_print(
+                "%s:%d rogue check: vap=%s vap_index=%u ssid=%s "
+                "private=%d hotspot=%d\n",
+                __func__, __LINE__,
+                matched_iface->vap_info.vap_name,
+                matched_vap_index,
+                ssid_input, is_private_vap, is_hotspot_vap);
+        }
+    }
+
+    /* ---- Per-BSS state tracked across the IE walk -------------- */
+    int has_valid_comcast_ie = 0;   /* 1 = comcast IE present + valid */
+    int ssid_matched         = 0;   /* scanned SSID == our VAP's SSID */
+
+    /* ============================================================
+     * IE walk
+     * ============================================================ */
     while (ielen >= 2 && ielen >= ie[1]) {
+
         uint16_t elem_id = (uint16_t)ie[0];
 
+        /* Standard IE parsers */
         if (elem_id < ARRAY_SIZE(ie_parsers) &&
             ie_parsers[elem_id].name &&
-            ie_parsers[elem_id].flags ) {
-            parse_ie(&ie_parsers[elem_id], elem_id, ie[1], ie + 2, &ie_buffer, bss);
-        } 
+            ie_parsers[elem_id].flags) {
+            parse_ie(&ie_parsers[elem_id], elem_id,
+                     ie[1], ie + 2, &ie_buffer, bss);
+        }
 
-	if (rogueap_config->rogue_ap_enable) {
-		if (ie[0] == WLAN_EID_VENDOR_SPECIFIC /* vendor */) {
-			mac_addr_str_t bssid_str;
-			wifi_hal_dbg_print("%s:%d Scanned SSID: %s BSSID:%s\n", __func__, __LINE__, bss->ssid, 
-					to_mac_str(bss->bssid, bssid_str));
-			wifi_interface_info_t *interface;
-                        CHAR ssid_input[WIFI_AP_MAX_SSID_LEN] = {'\0'};
-			interface = hash_map_get_first(radio->interface_map);
-			while (interface != NULL) {
-				if (strstr(interface->vap_info.vap_name, "private") ||
-						strstr(interface->vap_info.vap_name, "hotspot_open")) {
+        /* Vendor IE — rogue detection */
+        if (rogueap_config->rogue_ap_enable &&
+            matched_iface != NULL &&
+            ie[0] == WLAN_EID_VENDOR_SPECIFIC) {
 
-					strncpy(ssid_input, interface->vap_info.u.bss_info.ssid,
-							sizeof(ssid_input)-1);
-					break;
-				}
-				interface = hash_map_get_next(radio->interface_map, interface);
-			}
-			wifi_hal_dbg_print("%s:%d Vap-name : %s SSID : %s\n", __func__, __LINE__, interface->vap_info.vap_name, interface->vap_info.u.bss_info.ssid);
+            /* Only process BSSes whose SSID matches our VAP */
+            ssid_matched = (strcmp(bss->ssid, ssid_input) == 0);
 
-			if (strcmp(bss->ssid, ssid_input) == 0) {
-				wifi_hal_dbg_print("%s:%d Parsing vendor IE\n", __func__, __LINE__);
-				parse_vendor(ie[1], ie + 2);
-			}
-		}
-	}
+            if (ssid_matched) {
+                mac_addr_str_t bssid_str;
+                wifi_hal_dbg_print(
+                    "%s:%d vendor IE: ssid=%s bssid=%s "
+                    "vap=%s vap_index=%u\n",
+                    __func__, __LINE__,
+                    bss->ssid,
+                    to_mac_str(bss->bssid, bssid_str),
+                    matched_iface->vap_info.vap_name,
+                    matched_vap_index);
+
+                int rc = parse_vendor(ie[1], ie + 2);
+                if (rc == 0)
+                    has_valid_comcast_ie = 1;
+            }
+        }
+
         ielen -= ie[1] + 2;
-        ie += ie[1] + 2;
+        ie    += ie[1] + 2;
+    }
+
+    /* ============================================================
+     * Post-IE-walk classification
+     * Only run when rogue detection is enabled, we have a matching
+     * interface, and the scanned SSID matches our VAP's SSID.
+     * ============================================================ */
+    if (!rogueap_config->rogue_ap_enable ||
+        matched_iface == NULL             ||
+        !ssid_matched)
+        return;
+
+    mac_addr_str_t bssid_str;
+    to_mac_str(bss->bssid, bssid_str);
+
+    /* ---- PRIVATE VAP path -------------------------------------- */
+    if (is_private_vap) {
+
+        bool known = is_known_gateway(matched_vap_index, bss->bssid);
+
+        if (known) {
+            /* BSSID is in the operator-provisioned known-AP table →
+             * trusted gateway, not rogue, no further action.        */
+            wifi_hal_info_print(
+                "%s:%d [PRIVATE] bssid=%s is a KNOWN gateway "
+                "(vap_index=%u) — not rogue\n",
+                __func__, __LINE__, bssid_str, matched_vap_index);
+
+        } else if (has_valid_comcast_ie) {
+            /* UNKNOWN gateway WITH valid Comcast vendor IE + timestamp */
+            wifi_hal_info_print(
+                "%s:%d [PRIVATE] bssid=%s UNKNOWN GW + "
+                "VALID Comcast IE — rogue type 1 "
+                "(unknown-gw-with-comcast-ie)\n",
+                __func__, __LINE__, bssid_str);
+
+            /* TODO: raise rogue event type 1 */
+
+        } else {
+            /* UNKNOWN gateway WITHOUT Comcast vendor IE (or IE invalid) */
+            wifi_hal_info_print(
+                "%s:%d [PRIVATE] bssid=%s UNKNOWN GW + "
+                "NO valid Comcast IE — rogue type 2 "
+                "(unknown-gw-without-comcast-ie)\n",
+                __func__, __LINE__, bssid_str);
+
+            /* TODO: raise rogue event type 2 */
+        }
+
+    /* ---- HOTSPOT VAP path ------------------------------------- */
+    } else if (is_hotspot_vap) {
+
+        /* No known-AP table check for hotspot.
+         * Just report whether the Comcast vendor IE was valid.     */
+        if (has_valid_comcast_ie) {
+            wifi_hal_info_print(
+                "%s:%d [HOTSPOT] bssid=%s VALID Comcast IE "
+                "(decryption + timestamp ok)\n",
+                __func__, __LINE__, bssid_str);
+        } else {
+            wifi_hal_info_print(
+                "%s:%d [HOTSPOT] bssid=%s NO valid Comcast IE\n",
+                __func__, __LINE__, bssid_str);
+        }
+
+        /* TODO: raise hotspot rogue event if needed */
     }
 }
 

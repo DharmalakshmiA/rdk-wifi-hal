@@ -2618,6 +2618,62 @@ void wifi_hal_rnr_init(wifi_radio_index_t radio_index, const char *ssid)
 }
 #endif // FEATURE_SINGLE_PHY
 
+/* ================================================================
+ *  Per-VAP known-AP tables — written by OneWifi, read by scan path
+ * ================================================================ */
+static hal_known_ap_list_t g_known_ap_lists[MAX_VAP];
+static pthread_mutex_t     g_known_ap_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/* ---------------------------------------------------------------- */
+INT wifi_hal_set_known_aps(INT apIndex, const hal_known_ap_list_t *list)
+{
+    if (apIndex < 0 || apIndex >= MAX_VAP) {
+        wifi_hal_error_print("%s:%d invalid apIndex=%d\n",
+                             __func__, __LINE__, apIndex);
+        return RETURN_ERR;
+    }
+
+    if (!list) {
+        wifi_hal_error_print("%s:%d NULL list\n", __func__, __LINE__);
+        return RETURN_ERR;
+    }
+
+    pthread_mutex_lock(&g_known_ap_lock);
+    memcpy(&g_known_ap_lists[apIndex], list, sizeof(hal_known_ap_list_t));
+    pthread_mutex_unlock(&g_known_ap_lock);
+
+    wifi_hal_info_print("%s:%d apIndex=%d count=%u\n",
+                        __func__, __LINE__, apIndex, list->count);
+
+    /* Debug: log every stored MAC */
+    for (unsigned int i = 0; i < HAL_MAX_KNOWN_APS; i++) {
+        if (list->table[i].valid) {
+            mac_addr_str_t mac_str;
+            wifi_hal_dbg_print("%s:%d   slot=%u mac=%s\n",
+                               __func__, __LINE__, i,
+                               to_mac_str(list->table[i].mac, mac_str));
+        }
+    }
+
+    return RETURN_OK;
+}
+
+/* ---------------------------------------------------------------- */
+INT wifi_hal_get_known_aps(INT apIndex, hal_known_ap_list_t *list)
+{
+    if (apIndex < 0 || apIndex >= MAX_VAP || !list) {
+        wifi_hal_error_print("%s:%d invalid args apIndex=%d list=%p\n",
+                             __func__, __LINE__, apIndex, (void *)list);
+        return RETURN_ERR;
+    }
+
+    pthread_mutex_lock(&g_known_ap_lock);
+    memcpy(list, &g_known_ap_lists[apIndex], sizeof(hal_known_ap_list_t));
+    pthread_mutex_unlock(&g_known_ap_lock);
+
+    return RETURN_OK;
+}
+
 wifi_RogueConfig_t *get_rogueap_obj(void)
 {
     return &g_rogueap_config;
