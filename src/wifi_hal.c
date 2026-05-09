@@ -2731,7 +2731,7 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
 	    }
     } else {
 	    interface = get_private_vap_interface(radio);
-	    hotspot_interface = get_hotspot_vap_interface(radio);
+	    hotspot_interface = get_open_hotspot_vap_interface(radio);
 	    if ((interface == NULL) && (hotspot_interface == NULL)) {
 		    wifi_hal_stats_error_print("%s:%d: [SCAN] private & hotspot interface for radio '%s' not found\n",
 				    __func__, __LINE__, radio->name);
@@ -2812,7 +2812,7 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
 	num_ssid = 1;
     } else {
 	strcpy(ssid_list[0], vap->u.bss_info.ssid);
-	strcpy(ssid_list[1], hotspot_interface->vap_info->u.bss_info.ssid); 
+	strcpy(ssid_list[1], hotspot_interface->vap_info.u.bss_info.ssid); 
         num_ssid = 2;
     }
 

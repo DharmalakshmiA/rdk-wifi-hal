@@ -11294,9 +11294,8 @@ int rnr_scan6(wifi_radio_info_t *radio, INT dwell)
         ifc = get_private_vap_interface(radio);
     }
     if (ifc == NULL) {
-        wifi_vap_info_t *vap;
 	wifi_hal_error_print("%s:%d: [RNR] no 6G STA iface\n", __func__, __LINE__);
-	//return -1;
+	return -1;
     }
 
     char buf[128];
