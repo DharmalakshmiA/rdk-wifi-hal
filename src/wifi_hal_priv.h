@@ -938,6 +938,7 @@ int nl80211_update_wiphy(wifi_radio_info_t *radio);
 int copy_hw_features_to_radio_hw_modes(wifi_radio_info_t *radio, struct hostapd_iface *iface);
 INT wifi_getRadioCapabilityData(wifi_radio_info_t *radio, enum nl80211_band band);
 wifi_interface_info_t* get_private_vap_interface(wifi_radio_info_t *radio);
+wifi_interface_info_t* get_open_hotspot_vap_interface(wifi_radio_info_t *radio);
 wifi_interface_info_t* get_primary_interface(wifi_radio_info_t *radio);
 wifi_interface_info_t* get_private_vap_interface(wifi_radio_info_t *radio);
 int wifi_hal_get_vap_interface_type(wifi_vap_name_t vap_name, wifi_vap_type_t vap_type);
@@ -1477,4 +1478,5 @@ int wifi_hal_get_mac_address(const char *ifname, mac_address_t mac);
 unsigned int get_band_info_from_rdk_radio_index(unsigned int rdk_radio_index);
 int get_backhaul_sta_ifname_from_radio_index(wifi_radio_index_t index, char *ifname_out,
     size_t ifname_out_len);
+
 #endif // WIFI_HAL_PRIV_H
