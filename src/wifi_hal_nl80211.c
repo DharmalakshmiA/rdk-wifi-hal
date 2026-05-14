@@ -12206,54 +12206,68 @@ static void parse_ies(unsigned char *ie, int ielen,
     /* ---- PRIVATE VAP path -------------------------------------- */
     if (is_private_vap) {
 
-        bool known = is_known_gateway(matched_vap_index, bss->bssid);
+	    bool known = is_known_gateway(matched_vap_index, bss->bssid);
+	    if (known) {
 
-        if (known) {
-            /* BSSID is in the operator-provisioned known-AP table →
-             * trusted gateway, not rogue, no further action.        */
-            wifi_hal_info_print(
-                "%s:%d [PRIVATE] bssid=%s is a KNOWN gateway "
-                "(vap_index=%u) — not rogue\n",
-                __func__, __LINE__, bssid_str, matched_vap_index);
+		    if (has_valid_comcast_ie) {
 
-        } else if (has_valid_comcast_ie) {
-            /* UNKNOWN gateway WITH valid Comcast vendor IE + timestamp */
-            wifi_hal_info_print(
-                "%s:%d [PRIVATE] bssid=%s UNKNOWN GW + "
-                "VALID Comcast IE — rogue type 1 "
-                "(unknown-gw-with-comcast-ie)\n",
-                __func__, __LINE__, bssid_str);
+			    /* Trusted operator gateway */
+			    wifi_hal_info_print(
+					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=KNOWN_GW "
+					    "STATUS=TRUSTED "
+					    "DETAIL=Known gateway with valid Comcast IE "
+					    "(vap_index=%u)\n",
+					    __func__, __LINE__, bssid_str, matched_vap_index);
 
-            /* TODO: raise rogue event type 1 */
+		    } else {
 
-        } else {
-            /* UNKNOWN gateway WITHOUT Comcast vendor IE (or IE invalid) */
-            wifi_hal_info_print(
-                "%s:%d [PRIVATE] bssid=%s UNKNOWN GW + "
-                "NO valid Comcast IE — rogue type 2 "
-                "(unknown-gw-without-comcast-ie)\n",
-                __func__, __LINE__, bssid_str);
+			    /* Suspicious known gateway */
+			    wifi_hal_info_print(
+					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
+					    "STATUS=SUSPICIOUS "
+					    "DETAIL=Known gateway but Comcast IE invalid/missing "
+					    "(vap_index=%u)\n",
+					    __func__, __LINE__, bssid_str, matched_vap_index);
+		    }
 
-            /* TODO: raise rogue event type 2 */
-        }
+	    } else if (has_valid_comcast_ie) {
 
-    /* ---- HOTSPOT VAP path ------------------------------------- */
+		    /* Unknown gateway impersonating Comcast */
+		    wifi_hal_info_print(
+				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
+				    "STATUS=SUSPICIOUS "
+				    "DETAIL=Unknown gateway advertising valid Comcast IE\n",
+				    __func__, __LINE__, bssid_str);
+
+	    } else {
+
+		    /* Confirmed rogue */
+		    wifi_hal_info_print(
+				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE2_ROGUE "
+				    "STATUS=CONFIRMED_ROGUE "
+				    "DETAIL=Unknown gateway without valid Comcast IE\n",
+				    __func__, __LINE__, bssid_str);
+	    }
+
+	    /* ---- HOTSPOT VAP path ------------------------------------- */
     } else if (is_hotspot_vap) {
 
-        /* No known-AP table check for hotspot.
-         * Just report whether the Comcast vendor IE was valid.     */
-        if (has_valid_comcast_ie) {
-            wifi_hal_info_print(
-                "%s:%d [HOTSPOT] bssid=%s VALID Comcast IE "
-                "(decryption + timestamp ok)\n",
-                __func__, __LINE__, bssid_str);
-        } else {
-            wifi_hal_info_print(
-                "%s:%d [HOTSPOT] bssid=%s NO valid Comcast IE\n",
-                __func__, __LINE__, bssid_str);
-        }
+	    if (has_valid_comcast_ie) {
 
-        /* TODO: raise hotspot rogue event if needed */
+		    wifi_hal_info_print(
+				    "%s:%d [HOTSPOT] bssid=%s CLASSIFICATION=VALID_HOTSPOT "
+				    "STATUS=TRUSTED "
+				    "DETAIL=Valid Comcast IE detected\n",
+				    __func__, __LINE__, bssid_str);
+
+	    } else {
+
+		    wifi_hal_info_print(
+				    "%s:%d [HOTSPOT] bssid=%s CLASSIFICATION=HOTSPOT_SUSPECT "
+				    "STATUS=SUSPICIOUS "
+				    "DETAIL=Missing or invalid Comcast IE\n",
+				    __func__, __LINE__, bssid_str);
+	    }
     }
 }
 
