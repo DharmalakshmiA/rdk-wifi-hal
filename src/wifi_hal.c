@@ -2626,7 +2626,7 @@ INT wifi_hal_set_rogueap_status(BOOL rogueapstatus)
 	return 0;
 }
 
-INT wifi_hal_set_known_status(BOOL knownapstatus)
+INT wifi_hal_set_knownap_status(BOOL knownapstatus)
 {
         wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
         if (rogueap_config->rogue_ap_enable) {
