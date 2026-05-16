@@ -2045,23 +2045,6 @@ wifi_interface_info_t* get_private_vap_interface(wifi_radio_info_t *radio)
     return NULL;
 }
 
-wifi_interface_info_t* get_open_hotspot_vap_interface(wifi_radio_info_t *radio)
-{
-    wifi_interface_info_t *interface;
-    wifi_vap_info_t *vap;
-    interface = hash_map_get_first(radio->interface_map);
-
-    while (interface != NULL) {
-        vap = &interface->vap_info;
-        if (!strncmp(vap->vap_name, "hotspot_open_", sizeof("hotspot_open_")-1)) {
-            return interface;
-        }
-
-        interface = hash_map_get_next(radio->interface_map, interface);
-    }
-    return NULL;
-}
-
 int wifi_hal_get_vap_interface_type(wifi_vap_name_t vap_name, wifi_vap_type_t vap_type)
 {
     char *last_underscore;

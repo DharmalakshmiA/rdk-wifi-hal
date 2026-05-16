@@ -9301,10 +9301,9 @@ int nl80211_get_scan_results(wifi_interface_info_t *interface)
 
 #ifndef FEATURE_SINGLE_PHY
     wifi_radio_info_t *radio = get_radio_by_rdk_index(interface->vap_info.radio_index);
-    wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
-    wifi_hal_stats_dbg_print("%s:%d: [SCAN] rnr-en:%d rogue-ap:%d\n", __func__, __LINE__, radio->rnr_enabled, rogueap_config->rogue_ap_enable);
+
     if (radio != NULL && radio->rnr_enabled && radio->oper_param.band != WIFI_FREQUENCY_6_BAND &&
-        ((interface->vap_info.vap_mode == wifi_vap_mode_sta) || (rogueap_config->rogue_ap_enable))) {
+        interface->vap_info.vap_mode == wifi_vap_mode_sta) {
         wifi_radio_info_t *radio6g = rnr_find_6g_radio();
 
         radio->rnr_enabled = false;
@@ -11353,7 +11352,6 @@ int rnr_scan6(wifi_radio_info_t *radio, INT dwell)
     wifi_interface_info_t *ifc;
     rnr_scan_t *rnr;
     ssid_t ssid[1];
-    wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
 
     if (radio == NULL) {
         wifi_hal_error_print("%s:%d: [RNR] NULL radio\n", __func__, __LINE__);
@@ -11366,13 +11364,8 @@ int rnr_scan6(wifi_radio_info_t *radio, INT dwell)
         wifi_hal_dbg_print("%s:%d: [RNR] no 6G freqs, skip\n", __func__, __LINE__);
         return 0;
     }
-    
-    if (rogueap_config->rogue_ap_enable == false) {
 
-        ifc = rnr_sta6();
-    } else {
-        ifc = get_private_vap_interface(radio);
-    }
+    ifc = rnr_sta6();
     if (ifc == NULL) {
 	wifi_hal_error_print("%s:%d: [RNR] no 6G STA iface\n", __func__, __LINE__);
 	return -1;
@@ -11391,8 +11384,7 @@ int rnr_scan6(wifi_radio_info_t *radio, INT dwell)
     pthread_mutex_lock(&ifc->scan_info_mutex);
     hash_map_cleanup(ifc->scan_info_map);
     pthread_mutex_unlock(&ifc->scan_info_mutex);
-    
-    wifi_hal_dbg_print("%s:%d: SSID : %s\n", __func__, __LINE__, rnr->ssid);
+
     int ret = nl80211_start_scan(ifc, 0, rnr->nfreq, rnr->freq, dwell, 1, ssid);
     if (ret == 0) {
         rnr->scan_started = true;

@@ -2639,14 +2639,13 @@ INT wifi_hal_set_knownap_status(BOOL knownapstatus)
 INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mode, INT dwell_time, UINT num, UINT *chan_list)
 {
     wifi_radio_info_t *radio;
-    wifi_interface_info_t *interface, *hotspot_interface;
+    wifi_interface_info_t *interface;
     wifi_vap_info_t *vap;
     bool found = false;
     wifi_radio_operationParam_t *radio_param = NULL, *param = NULL;
     char country[8] = {0}, tmp_str[32] = {0}, chan_list_str[512] = {0};
     unsigned int freq_list[MAX_FREQ_LIST_SIZE], i;
     ssid_t  ssid_list[8];
-    unsigned int num_ssid = 0;
     int op_class, freq_num = 0;
     wifi_RogueConfig_t *rogueap_config = get_rogueap_obj();
 
@@ -2680,9 +2679,8 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
 	    }
     } else {
 	    interface = get_private_vap_interface(radio);
-	    hotspot_interface = get_open_hotspot_vap_interface(radio);
-	    if ((interface == NULL) && (hotspot_interface == NULL)) {
-		    wifi_hal_stats_error_print("%s:%d: [SCAN] private & hotspot interface for radio '%s' not found\n",
+	    if (interface == NULL) {
+		    wifi_hal_stats_error_print("%s:%d: [SCAN] private interface for radio '%s' not found\n",
 				    __func__, __LINE__, radio->name);
 		    return WIFI_HAL_ERROR;
 	    }
@@ -2756,17 +2754,9 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
         return RETURN_ERR;
     }
     
-    if (rogueap_config->rogue_ap_enable == false) { 
-        strcpy(ssid_list[0], get_vap_ssid(vap));
-	num_ssid = 1;
-    } else {
-	strcpy(ssid_list[0], vap->u.bss_info.ssid);
-	strcpy(ssid_list[1], hotspot_interface->vap_info.u.bss_info.ssid); 
-        num_ssid = 2;
-    }
-
+    strcpy(ssid_list[0], get_vap_ssid(vap));
     wifi_hal_stats_info_print("%s:%d: Scan Frequencies:%s \n", __func__, __LINE__, chan_list_str);
-    wifi_hal_stats_info_print("%s:%d: SSID:%s Hotspot SSID:%s\n", __func__, __LINE__, ssid_list[0], ssid_list[1]);
+    wifi_hal_stats_info_print("%s:%d: SSID:%s \n", __func__, __LINE__, ssid_list[0]);
     pthread_mutex_lock(&interface->scan_info_mutex);
     hash_map_cleanup(interface->scan_info_map);
     pthread_mutex_unlock(&interface->scan_info_mutex);
@@ -2780,7 +2770,7 @@ INT wifi_hal_startScan(wifi_radio_index_t index, wifi_neighborScanMode_t scan_mo
     }
 #endif //FEATURE_SINGLE_PHY
 
-    return (nl80211_start_scan(interface, NL80211_SCAN_FLAG_COLOCATED_6GHZ | NL80211_SCAN_FLAG_FLUSH, freq_num, freq_list, dwell_time, num_ssid, ssid_list) == 0) ? RETURN_OK:RETURN_ERR;
+    return (nl80211_start_scan(interface, NL80211_SCAN_FLAG_COLOCATED_6GHZ | NL80211_SCAN_FLAG_FLUSH, freq_num, freq_list, dwell_time, 1, ssid_list) == 0) ? RETURN_OK:RETURN_ERR;
 }
 
 /*****************************/
