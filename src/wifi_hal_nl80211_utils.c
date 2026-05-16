@@ -3698,6 +3698,39 @@ void wifi_hal_stats_print(wifi_hal_stats_log_level_t level, const char *format, 
     return;
 }
 
+#define WIFI_ROGUE_AP_LOG_FILE "/tmp/WifiRogueAplogs.txt"
+
+void wifi_rogue_ap_print(const char *format, ...)
+{
+    char buff[256] = {0};
+    va_list list;
+    FILE *fpg = NULL;
+
+    /* Reuse existing timestamp helper */
+    get_formatted_time(buff);
+
+    fpg = fopen(WIFI_ROGUE_AP_LOG_FILE, "a+");
+    if (fpg == NULL) {
+        return;
+    }
+
+    /* Append Rogue AP marker */
+    snprintf(&buff[strlen(buff)],
+             sizeof(buff) - strlen(buff),
+             " <ROGUE_AP> ");
+
+    fprintf(fpg, "%s ", buff);
+
+    va_start(list, format);
+    vfprintf(fpg, format, list);
+    va_end(list);
+
+    fflush(fpg);
+    fclose(fpg);
+
+    return;
+}
+
 void wifi_hal_print(wifi_hal_log_level_t level, const char *format, ...)
 {
     char buff[256] = {0};

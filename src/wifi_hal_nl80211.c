@@ -12189,7 +12189,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 		    if (has_valid_comcast_ie) {
 
 			    /* Trusted operator gateway */
-			    wifi_hal_info_print(
+			    wifi_rogue_ap_log(
 					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=KNOWN_GW "
 					    "STATUS=TRUSTED "
 					    "DETAIL=Known gateway with valid Comcast IE "
@@ -12199,7 +12199,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 		    } else {
 
 			    /* Suspicious known gateway */
-			    wifi_hal_info_print(
+			    wifi_rogue_ap_log(
 					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
 					    "STATUS=SUSPICIOUS "
 					    "DETAIL=Known gateway but Comcast IE invalid/missing "
@@ -12210,7 +12210,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 	    } else if (has_valid_comcast_ie) {
 
 		    /* Unknown gateway impersonating Comcast */
-		    wifi_hal_info_print(
+		    wifi_rogue_ap_log(
 				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
 				    "STATUS=SUSPICIOUS "
 				    "DETAIL=Unknown gateway advertising valid Comcast IE\n",
@@ -12219,7 +12219,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 	    } else {
 
 		    /* Confirmed rogue */
-		    wifi_hal_info_print(
+		    wifi_rogue_ap_log(
 				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE2_ROGUE "
 				    "STATUS=CONFIRMED_ROGUE "
 				    "DETAIL=Unknown gateway without valid Comcast IE\n",
@@ -12231,7 +12231,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 
 	    if (has_valid_comcast_ie) {
 
-		    wifi_hal_info_print(
+		    wifi_rogue_ap_log(
 				    "%s:%d [HOTSPOT] bssid=%s CLASSIFICATION=VALID_HOTSPOT "
 				    "STATUS=TRUSTED "
 				    "DETAIL=Valid Comcast IE detected\n",
@@ -12239,7 +12239,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 
 	    } else {
 
-		    wifi_hal_info_print(
+		    wifi_rogue_ap_log(
 				    "%s:%d [HOTSPOT] bssid=%s CLASSIFICATION=HOTSPOT_SUSPECT "
 				    "STATUS=SUSPICIOUS "
 				    "DETAIL=Missing or invalid Comcast IE\n",

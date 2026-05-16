@@ -1254,10 +1254,17 @@ typedef enum {
     WIFI_HAL_STATS_LOG_LVL_MAX
 }wifi_hal_stats_log_level_t;
 
+
+
+
 void wifi_hal_print(wifi_hal_log_level_t level, const char *format, ...)__attribute__((format(printf, 2, 3)));
 
 //wifi_halstats
 void wifi_hal_stats_print(wifi_hal_stats_log_level_t level, const char *format, ...)__attribute__((format(printf, 2, 3)));
+
+void wifi_rogue_ap_print(const char *format, ...)__attribute__((format(printf, 1, 2)));
+
+#define wifi_rogue_ap_log(format, ...) wifi_rogue_ap_print(format, ##__VA_ARGS__)
 
 #define wifi_hal_dbg_print(format, ...)  wifi_hal_print(WIFI_HAL_LOG_LVL_DEBUG, format, ##__VA_ARGS__)
 #define wifi_hal_info_print(format, ...)  wifi_hal_print(WIFI_HAL_LOG_LVL_INFO, format, ##__VA_ARGS__)
