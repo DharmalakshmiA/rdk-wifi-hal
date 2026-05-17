@@ -12192,7 +12192,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 			    wifi_rogue_ap_log(
 					    "[PRIVATE] bssid=%s CLASSIFICATION=KNOWN_GW "
 					    "STATUS=TRUSTED "
-					    "DETAIL=Known gateway with valid Comcast IE \n"
+					    "DETAIL=Known gateway with valid Comcast IE \n",
 					    bssid_str);
 
 		    } else {
@@ -12201,7 +12201,7 @@ static void parse_ies(unsigned char *ie, int ielen,
 			    wifi_rogue_ap_log(
 					    "[PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
 					    "STATUS=SUSPICIOUS "
-					    "DETAIL=Known gateway but Comcast IE invalid/missing \n"
+					    "DETAIL=Known gateway but Comcast IE invalid/missing \n",
 					    bssid_str);
 		    }
 
