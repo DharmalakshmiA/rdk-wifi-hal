@@ -12190,40 +12190,38 @@ static void parse_ies(unsigned char *ie, int ielen,
 
 			    /* Trusted operator gateway */
 			    wifi_rogue_ap_log(
-					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=KNOWN_GW "
+					    "[PRIVATE] bssid=%s CLASSIFICATION=KNOWN_GW "
 					    "STATUS=TRUSTED "
-					    "DETAIL=Known gateway with valid Comcast IE "
-					    "(vap_index=%u)\n",
-					    __func__, __LINE__, bssid_str, matched_vap_index);
+					    "DETAIL=Known gateway with valid Comcast IE \n"
+					    bssid_str);
 
 		    } else {
 
 			    /* Suspicious known gateway */
 			    wifi_rogue_ap_log(
-					    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
+					    "[PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
 					    "STATUS=SUSPICIOUS "
-					    "DETAIL=Known gateway but Comcast IE invalid/missing "
-					    "(vap_index=%u)\n",
-					    __func__, __LINE__, bssid_str, matched_vap_index);
+					    "DETAIL=Known gateway but Comcast IE invalid/missing \n"
+					    bssid_str);
 		    }
 
 	    } else if (has_valid_comcast_ie) {
 
 		    /* Unknown gateway impersonating Comcast */
 		    wifi_rogue_ap_log(
-				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
+				    "[PRIVATE] bssid=%s CLASSIFICATION=TYPE1_ROGUE "
 				    "STATUS=SUSPICIOUS "
 				    "DETAIL=Unknown gateway advertising valid Comcast IE\n",
-				    __func__, __LINE__, bssid_str);
+				    bssid_str);
 
 	    } else {
 
 		    /* Confirmed rogue */
 		    wifi_rogue_ap_log(
-				    "%s:%d [PRIVATE] bssid=%s CLASSIFICATION=TYPE2_ROGUE "
+				    "[PRIVATE] bssid=%s CLASSIFICATION=TYPE2_ROGUE "
 				    "STATUS=CONFIRMED_ROGUE "
 				    "DETAIL=Unknown gateway without valid Comcast IE\n",
-				    __func__, __LINE__, bssid_str);
+				    bssid_str);
 	    }
 
 	    /* ---- HOTSPOT VAP path ------------------------------------- */
