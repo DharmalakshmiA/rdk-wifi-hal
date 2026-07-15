@@ -134,6 +134,7 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     char output[256] = {0};
     mac_addr_str_t al_ctrl_mac;
     char ifname[100] = {0};
+    unsigned int mac[6];
     int ret = 0, colocated_mode;
     bool interface_found = false;
     size_t len;
@@ -223,12 +224,31 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
        }
     }
 #elif defined (XLE_PORT)
-    _syscmd("grep -a 'ETHERNET_MAC_ADDRESS' /tmp/serial.txt | cut -d '=' -f2", output, sizeof(output));
+    _syscmd("grep -a 'ETHERNET_MAC_ADDRESS' /tmp/serial.txt | cut -d '=' -f2", output,
+        sizeof(output));
     len = strnlen(output, sizeof(output));
     if (len != 0 && output[len - 1] == '\n') {
         output[len - 1] = '\0';
     }
-    to_mac_bytes(output,hal->wifi_prop.cm_mac);
+
+    if (sscanf(output, "%2x%2x%2x%2x%2x%2x", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4],
+            &mac[5]) == 6) {
+
+        for (int i = 0; i < 6; i++)
+            hal->wifi_prop.cm_mac[i] = (uint8_t)mac[i];
+        
+        wifi_hal_info_print("%s %d CM MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+               __func__, __LINE__,
+               hal->wifi_prop.cm_mac[0],
+               hal->wifi_prop.cm_mac[1],
+               hal->wifi_prop.cm_mac[2],
+               hal->wifi_prop.cm_mac[3],
+               hal->wifi_prop.cm_mac[4],
+               hal->wifi_prop.cm_mac[5]);
+    } else {
+        wifi_hal_info_print("%s %d Unable to parse CM MAC address from output: %s\n", __func__, __LINE__, output);
+    }
+
 #else
     _syscmd("grep -a 'CM' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
     len = strnlen(output, sizeof(output));
