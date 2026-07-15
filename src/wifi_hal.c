@@ -171,6 +171,8 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     if (strlen(output) == 0) {
         strncpy(output, "bpi-123", sizeof(output));
     }
+#elif defined (XLE_PORT)
+    _syscmd("grep -a 'DEVICE_SERIAL_NUMBER' /tmp/serial.txt | cut -d '=' -f2", output, sizeof(output));
 #else
     _syscmd("grep -a 'Serial' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
 #endif
@@ -186,6 +188,8 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     if (strlen(output) == 0) {
         strncpy(output, "Banana Pi - R4", sizeof(output));
     }
+#elif defined (XLE_PORT)
+    _syscmd("grep -a 'MODEL' /tmp/serial.txt | cut -d '=' -f2", output, sizeof(output));
 #else
     _syscmd("grep -a 'MODEL' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
 #endif
@@ -218,6 +222,13 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
             memset(hal->wifi_prop.cm_mac, 0, sizeof(hal->wifi_prop.cm_mac));
        }
     }
+#elif defined (XLE_PORT)
+    _syscmd("grep -a 'ETHERNET_MAC_ADDRESS' /tmp/serial.txt | cut -d '=' -f2", output, sizeof(output));
+    len = strnlen(output, sizeof(output));
+    if (len != 0 && output[len - 1] == '\n') {
+        output[len - 1] = '\0';
+    }
+    to_mac_bytes(output,hal->wifi_prop.cm_mac);
 #else
     _syscmd("grep -a 'CM' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
     len = strnlen(output, sizeof(output));
