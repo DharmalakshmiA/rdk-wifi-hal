@@ -178,8 +178,12 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     _syscmd("grep -a 'Serial' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
 #endif
     len = strnlen(output, sizeof(output));
-    if (len != 0 && output[len - 1] == '\n') {
+    wifi_hal_info_print("%s:%d: [RAW serialNo] len=%zu has_CR=%d last=0x%02x val=[%s]\n",
+        __func__, __LINE__, len, (strchr(output, '\r') != NULL),
+        len ? (unsigned char)output[len - 1] : 0, output);
+    while (len != 0 && (output[len - 1] == '\n' || output[len - 1] == '\r')) {
         output[len - 1] = '\0';
+        len--;
     }
     strcpy(hal->wifi_prop.serialNo,output);
 
@@ -190,13 +194,17 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
         strncpy(output, "Banana Pi - R4", sizeof(output));
     }
 #elif defined (XLE_PORT)
-    _syscmd("grep -a 'MODEL' /tmp/serial.txt | cut -d '=' -f2", output, sizeof(output));
+    _syscmd("grep -a 'MODEL' /tmp/serial.txt | cut -d '=' -f2 | xargs", output, sizeof(output));
 #else
     _syscmd("grep -a 'MODEL' /tmp/factory_nvram.data | cut -d ' ' -f2", output, sizeof(output));
 #endif
     len = strnlen(output, sizeof(output));
-    if (len != 0 && output[len - 1] == '\n') {
+    wifi_hal_info_print("%s:%d: [RAW model] len=%zu has_CR=%d last=0x%02x val=[%s]\n",
+        __func__, __LINE__, len, (strchr(output, '\r') != NULL),
+        len ? (unsigned char)output[len - 1] : 0, output);
+    while (len != 0 && (output[len - 1] == '\n' || output[len - 1] == '\r')) {
         output[len - 1] = '\0';
+        len--;
     }
     strcpy(hal->wifi_prop.manufacturerModel,output);
     strcpy(hal->wifi_prop.manufacturer,output);
@@ -227,8 +235,12 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     _syscmd("grep -a 'ETHERNET_MAC_ADDRESS' /tmp/serial.txt | cut -d '=' -f2", output,
         sizeof(output));
     len = strnlen(output, sizeof(output));
-    if (len != 0 && output[len - 1] == '\n') {
+    wifi_hal_info_print("%s:%d: [RAW cm_mac] len=%zu has_CR=%d last=0x%02x val=[%s]\n",
+        __func__, __LINE__, len, (strchr(output, '\r') != NULL),
+        len ? (unsigned char)output[len - 1] : 0, output);
+    while (len != 0 && (output[len - 1] == '\n' || output[len - 1] == '\r')) {
         output[len - 1] = '\0';
+        len--;
     }
 
     if (sscanf(output, "%2x%2x%2x%2x%2x%2x", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4],
