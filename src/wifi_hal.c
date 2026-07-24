@@ -134,7 +134,6 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
     char output[256] = {0};
     mac_addr_str_t al_ctrl_mac;
     char ifname[100] = {0};
-    unsigned int mac[6];
     int ret = 0, colocated_mode;
     bool interface_found = false;
     size_t len;
@@ -232,6 +231,7 @@ INT wifi_hal_getHalCapability(wifi_hal_capability_t *hal)
        }
     }
 #elif defined (XLE_PORT)
+	unsigned int mac[6];
     _syscmd("grep -a 'ETHERNET_MAC_ADDRESS' /tmp/serial.txt | cut -d '=' -f2", output,
         sizeof(output));
     len = strnlen(output, sizeof(output));
