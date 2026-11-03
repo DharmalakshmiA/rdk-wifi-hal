@@ -1391,6 +1391,27 @@ int get_sta_4addr_status(bool *sta_4addr)
     return json_parse_boolean(EM_CFG_FILE, "sta_4addr_mode_enabled", sta_4addr);
 }
 
+INT wifi_hal_setRadioInterworkingPayload(wifi_radio_index_t index,
+    const wifi_radio_interworking_t *payload)
+{
+    wifi_radio_info_t *radio;
+
+    RADIO_INDEX_ASSERT(index);
+    NULL_PTR_ASSERT(payload);
+
+    radio = get_radio_by_rdk_index(index);
+    if (radio == NULL) {
+        wifi_hal_error_print("%s:%d: radio index:%d failed not find radio\n", __func__,
+            __LINE__, index);
+        return RETURN_ERR;
+    }
+
+    pthread_mutex_lock(&g_wifi_hal.hapd_lock);
+    memcpy(&radio->interworking_payload, payload, sizeof(wifi_radio_interworking_t));
+    pthread_mutex_unlock(&g_wifi_hal.hapd_lock);
+    return RETURN_OK;
+}
+
 INT wifi_hal_createVAP(wifi_radio_index_t index, wifi_vap_info_map_t *map)
 {
     wifi_radio_info_t *radio;
