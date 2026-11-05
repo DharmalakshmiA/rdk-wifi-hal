@@ -1409,6 +1409,9 @@ INT wifi_hal_setRadioInterworkingPayload(wifi_radio_index_t index,
     pthread_mutex_lock(&g_wifi_hal.hapd_lock);
     memcpy(&radio->interworking_payload, payload, sizeof(wifi_radio_interworking_t));
     pthread_mutex_unlock(&g_wifi_hal.hapd_lock);
+    wifi_hal_dl_print("radio:%d passpoint.enable:%d gafDisable:%d p2pDisable:%d roamingConsortiumCount:%d\n",
+        index, payload->passpoint.enable, payload->passpoint.gafDisable, payload->passpoint.p2pDisable,
+        payload->roamingConsortium.wifiRoamingConsortiumCount);
     return RETURN_OK;
 }
 

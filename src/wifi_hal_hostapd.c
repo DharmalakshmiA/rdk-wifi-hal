@@ -1312,6 +1312,9 @@ int update_hostap_bss(wifi_interface_info_t *interface)
                 conf->venue_info_set, conf->venue_group, conf->venue_type, MAC_TO_MACF(conf->hessid));
     hostapd_set_security_params(conf, 1);
     const wifi_radio_interworking_t *iw_payload = get_vap_interworking_payload(vap);
+    wifi_hal_dl_print("vap:%s interworkingEnabled:%d payload:%s passpoint.enable:%d\n", vap->vap_name,
+        vap->u.bss_info.interworking.interworkingEnabled, (iw_payload != NULL) ? "set" : "NULL",
+        (iw_payload != NULL) ? iw_payload->passpoint.enable : -1);
     if ((iw_payload != NULL) && iw_payload->passpoint.enable) {
         wifi_hal_dbg_print("gafDisable %d,p2pDisable %d l2tfi %d\n",iw_payload->passpoint.gafDisable,iw_payload->passpoint.p2pDisable,iw_payload->passpoint.l2tif);
         wifi_hal_dbg_print("%s:%d, Passpoint enabled hence add roaming consortium IE \n", __func__, __LINE__);

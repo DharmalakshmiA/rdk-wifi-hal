@@ -1343,6 +1343,7 @@ void wifi_hal_stats_print(wifi_hal_stats_log_level_t level, const char *format, 
 #define wifi_hal_dbg_print(format, ...)  wifi_hal_print(WIFI_HAL_LOG_LVL_DEBUG, format, ##__VA_ARGS__)
 #define wifi_hal_info_print(format, ...)  wifi_hal_print(WIFI_HAL_LOG_LVL_INFO, format, ##__VA_ARGS__)
 #define wifi_hal_error_print(format, ...)  wifi_hal_print(WIFI_HAL_LOG_LVL_ERROR, format, ##__VA_ARGS__)
+#define wifi_hal_dl_print(format, ...)  wifi_hal_info_print("[DL] %s:%d: " format, __func__, __LINE__, ##__VA_ARGS__)
 
 //wifi_halstats
 #define wifi_hal_stats_dbg_print(format, ...)  wifi_hal_stats_print(WIFI_HAL_STATS_LOG_LVL_DEBUG, format, ##__VA_ARGS__)
